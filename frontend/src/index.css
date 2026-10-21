@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #F8F9FA !important;
+    color: #0B192C !important;
+  }
+}
+
+/* ── E-ticket export ───────────────────────────────────────────────────────
+   Passengers export their pass with the browser's print dialog ("Save as
+   PDF"). The ticket is a single slip, so it must come out on one sheet with
+   nothing else on it: the app chrome steps aside and the ticket is released
+   from the shell's width constraints so it fills the page without reflowing
+   onto a second one. */
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0b192c !important;
+    /* Without this, Chrome and Safari drop the background colours and the
+       ticket prints as a blank grey slip instead of the amber rail stock. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Application chrome and in-page controls — never part of the ticket. */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Neutralises the shell's max-width, padding and vertical flex sizing. */
+  .print-sheet {
+    display: block !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  /* A ticket split across two sides is useless at a barrier gate. */
+  .print-ticket {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* Custom scrollbar for dense data tables */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
