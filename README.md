@@ -8,9 +8,9 @@ UK_Rail_Reservation/
 └── frontend/    React + TypeScript + Tailwind UI            (port 5174)
 ```
 
-In development the browser only ever talks to **one origin** (`http://localhost:5174`);
+In development the browser talks to the frontend (port 5174);
 Vite proxies every `/api` request to the backend. In production the backend serves the
-built frontend from its own port, so the app runs single-origin on **5000**.
+built frontend from its own port, so the app runs single-origin on **port 5000**.
 
 ---
 
@@ -47,11 +47,9 @@ npm install
 ## Running in development
 
 ```powershell
-cd backend;  npm run dev     # API on http://localhost:5000
-cd frontend; npm run dev     # UI  on http://localhost:5174
+cd backend;  npm run dev     # API on port 5000
+cd frontend; npm run dev     # UI  on port 5174
 ```
-
-Open **http://localhost:5174**.
 
 ### Demo account
 
@@ -140,7 +138,7 @@ moments later.
 ```powershell
 cd frontend; npm run build
 cd backend;  npm run build
-cd backend;  npm start      # UI + API together on http://localhost:5000
+cd backend;  npm start      # UI + API together on port 5000
 ```
 
 The backend auto-detects `frontend/dist` and serves it with an SPA fallback. Delete that
