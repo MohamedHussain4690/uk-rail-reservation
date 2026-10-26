@@ -270,18 +270,32 @@ export function AuthScreen() {
         </form>
       </motion.div>
 
-      {/* Demo credentials — same amber advisory panel used elsewhere */}
-      <div className="mt-4 bg-amber-50 border border-amber-300 p-4 flex items-start space-x-3 text-[#0B192C]">
+      {/* Demo credentials — click to autofill */}
+      <div
+        onClick={() => {
+          setMode('login');
+          setEmail('arthur.pendelton@gmail.com');
+          setPassword('railway2026');
+          setError(null);
+        }}
+        title="Click to autofill demo credentials"
+        className="mt-4 bg-amber-50 hover:bg-amber-100/90 border border-amber-300 p-4 flex items-start space-x-3 text-[#0B192C] cursor-pointer transition-colors group"
+      >
         <div className="w-8 h-8 bg-amber-200 border border-amber-400 text-amber-900 flex items-center justify-center font-bold shrink-0">
           <Ticket className="w-4 h-4 text-amber-800" />
         </div>
         <div className="text-xs">
-          <h4 className="font-bold uppercase tracking-wider text-amber-900">Demo Passenger Account</h4>
+          <div className="flex items-center space-x-2">
+            <h4 className="font-bold uppercase tracking-wider text-amber-900">Demo Passenger Account</h4>
+            <span className="text-[9px] font-mono font-bold uppercase text-amber-800 bg-amber-200/70 border border-amber-300 px-1.5 py-0.5 rounded">
+              Click to Autofill
+            </span>
+          </div>
           <p className="text-amber-800 font-mono text-[11px] mt-0.5">
             arthur.pendelton@gmail.com / railway2026
           </p>
         </div>
-        <ArrowRight className="w-4 h-4 text-amber-800 ml-auto shrink-0" />
+        <ArrowRight className="w-4 h-4 text-amber-800 ml-auto shrink-0 group-hover:translate-x-1 transition-transform" />
       </div>
     </div>
   );

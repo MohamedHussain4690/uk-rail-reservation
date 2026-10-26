@@ -64,13 +64,21 @@ function PantryItemImage({ item }: { item: PantryItem }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-t-sm border-b border-[#0B192C18] bg-[#F1F3F5]">
+    <div className="relative h-36 w-full overflow-hidden rounded-t-sm border-b border-[#0B192C18] bg-[#F1F3F5] md:h-40">
+      {/* Soft photographic fill keeps the fixed banner shape without cropping
+          the food itself out of the top or bottom of the frame. */}
+      <div
+        aria-hidden="true"
+        className="absolute -inset-2 bg-cover bg-center opacity-40 blur-lg"
+        style={{ backgroundImage: `url("${item.image}")` }}
+      />
+      <div aria-hidden="true" className="absolute inset-0 bg-white/25" />
       <img
         src={item.image}
         alt={item.name}
         decoding="async"
         onError={() => setFailed(true)}
-        className="w-full h-36 md:h-40 object-cover rounded-t-sm brightness-95 contrast-[1.05]"
+        className="relative z-10 h-full w-full rounded-t-sm object-contain brightness-95 contrast-[1.05]"
       />
     </div>
   );

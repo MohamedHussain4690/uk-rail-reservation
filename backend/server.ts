@@ -5,6 +5,7 @@ import path from 'path';
 import fs from 'fs';
 
 import { connectDb } from './src/db';
+import { seedDemoData } from './src/scripts/seed';
 import { attachUser } from './src/auth/session';
 import authRoutes from './src/routes/auth';
 import bookingRoutes from './src/routes/bookings';
@@ -99,6 +100,7 @@ if (fs.existsSync(FRONTEND_INDEX)) {
 async function start() {
   try {
     await connectDb();
+    await seedDemoData(false);
   } catch (err) {
     console.error('Could not connect to MongoDB. Is the MongoDB service running?');
     console.error(err);

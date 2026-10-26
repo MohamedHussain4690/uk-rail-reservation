@@ -544,7 +544,7 @@ function PassengerGateway() {
     <div className="min-h-screen bg-[#F8F9FA] text-[#0B192C] flex flex-col font-sans">
       <div className="bg-[#0B192C] text-white px-4 py-2.5 text-xs font-mono tracking-wider flex items-center justify-between border-b border-white/10">
         <div className="flex items-center space-x-2">
-          <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full inline-block"></span>
+          <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping inline-block"></span>
           <span className="bg-railRed text-white px-1.5 py-0.5 text-[10px] font-bold uppercase">Secure</span>
           <span className="text-gray-300">NATIONAL RAIL PASSENGER GATEWAY</span>
         </div>

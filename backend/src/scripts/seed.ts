@@ -5,21 +5,26 @@ import { Station, STATION_SEED } from '../models/Station';
 import { Session } from '../models/Session';
 import { hashPassword } from '../auth/password';
 
-const DEMO_EMAIL = 'arthur.pendelton@gmail.com';
-const DEMO_PASSWORD = 'railway2026';
+export const DEMO_EMAIL = 'arthur.pendelton@gmail.com';
+export const DEMO_PASSWORD = 'railway2026';
 
-async function seed() {
-  await connectDb();
-
-  console.log('Seeding National Rail station database…');
+/**
+ * Bootstrap stations and demo account.
+ * When force=false (default on server startup), it only creates the demo user
+ * if they do not exist yet, preserving any live changes.
+ */
+export async function seedDemoData(force = false): Promise<void> {
   for (const station of STATION_SEED) {
     await Station.updateOne({ code: station.code }, { $set: station }, { upsert: true });
   }
-  console.log(`  stations: ${await Station.countDocuments()}`);
 
   const existing = await User.findOne({ email: DEMO_EMAIL });
 
-  if (existing) {
+  if (existing && !force) {
+    return;
+  }
+
+  if (existing && force) {
     await Session.deleteMany({ userId: existing._id });
     await Booking.deleteMany({ userId: existing._id });
     await User.deleteOne({ _id: existing._id });
@@ -40,7 +45,7 @@ async function seed() {
     seatPreference: 'Window Seat (Forward)',
   });
 
-  console.log(`Demo passenger created: ${user.email} / ${DEMO_PASSWORD}`);
+  console.log(`Demo passenger ready: ${user.email} / ${DEMO_PASSWORD}`);
 
   await Booking.create([
     {
@@ -82,14 +87,21 @@ async function seed() {
     },
   ]);
 
-  console.log(`  bookings: ${await Booking.countDocuments({ userId: user._id })}`);
-  console.log('Seed complete.');
+  console.log(`Demo bookings seeded for ${user.email}`);
+}
 
+async function runStandaloneSeed() {
+  await connectDb();
+  await seedDemoData(true);
+  console.log('Standalone seed complete.');
   await mongoose.disconnect();
 }
 
-seed().catch(async (err) => {
-  console.error('Seed failed:', err);
-  await mongoose.disconnect();
-  process.exit(1);
-});
+// Run standalone if executed directly
+if (process.argv[1]?.includes('seed')) {
+  runStandaloneSeed().catch(async (err) => {
+    console.error('Seed failed:', err);
+    await mongoose.disconnect();
+    process.exit(1);
+  });
+}
