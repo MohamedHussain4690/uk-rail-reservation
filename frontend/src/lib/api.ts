@@ -122,7 +122,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new Error(
-      'Cannot reach the National Rail API. Make sure the backend is running on port 5000.'
+      'Cannot reach the National Rail API. Please check your network connection.'
     );
   }
 
@@ -149,7 +149,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // unreachable; reverse proxies typically use 502/503/504.
     if (!message && !detail && [500, 502, 503, 504].includes(response.status)) {
       throw new Error(
-        `The National Rail API did not respond (HTTP ${response.status}). Is the backend running on port 5000?`
+        `The National Rail API did not respond (HTTP ${response.status}). Please try again shortly.`
       );
     }
 

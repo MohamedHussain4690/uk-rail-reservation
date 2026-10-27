@@ -232,7 +232,7 @@ function RailReservationApp({ user }: { user: User }) {
             <div className="flex items-center space-x-4">
               <div className="hidden lg:flex flex-col text-right">
                 <span className="text-xs font-semibold text-[#0B192C]">{user.name.toUpperCase()}</span>
-                <span className="text-[10px] font-mono text-gray-500">PORT: 5000 // SECURE</span>
+                <span className="text-[10px] font-mono text-gray-500">CRS LIVE // 256-BIT SSL</span>
               </div>
               <div
                 onClick={() => setActiveTab('profile')}
@@ -500,7 +500,7 @@ function RailReservationApp({ user }: { user: User }) {
               <span className="font-bold text-[#0B192C]">UK TRANS-NATIONAL TRANSIT AUTHORITY</span> • National Rail Enquiries System
             </div>
             <div className="flex items-center space-x-6">
-              <span className="text-emerald-600 flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Secure Port 5000</span>
+              <span className="text-emerald-600 flex items-center"><CheckCircle2 className="w-3.5 h-3.5 mr-1" /> 256-Bit SSL Encrypted</span>
               <span>API v4.2.0</span>
               <span>Terms & Conditions</span>
             </div>
