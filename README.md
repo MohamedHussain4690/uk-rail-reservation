@@ -1,6 +1,9 @@
 # UK National Rail Reservation
 
-A demo rail booking system with an Express + MongoDB API and a React (Vite) frontend.
+A full-stack UK rail booking and catering management system built with Express, MongoDB, and React (Vite).
+
+> 🌐 **Live Demo:** [https://uk-rail-reservation.onrender.com/](https://uk-rail-reservation.onrender.com/)  
+> Deployed on **Render** with a cloud **MongoDB Atlas** cluster.
 
 ```
 UK_Rail_Reservation/
@@ -10,7 +13,7 @@ UK_Rail_Reservation/
 
 In development the browser talks to the frontend (port 5174);
 Vite proxies every `/api` request to the backend. In production the backend serves the
-built frontend from its own port, so the app runs single-origin on **port 5000**.
+built frontend from its own port, so the app runs single-origin on **port 5000** (deployed live on Render).
 
 ---
 
@@ -53,12 +56,15 @@ cd frontend; npm run dev     # UI  on port 5174
 
 ### Demo account
 
+The live deployment comes pre-seeded with a demo passenger and sample tickets:
+
 | Email | Password |
 | --- | --- |
 | `arthur.pendelton@gmail.com` | `railway2026` |
 
-Seeded with a 16-25 Railcard (34% off) and two tickets in the wallet. New accounts can
-be created from the sign-up tab.
+> **Quick Sign-in:** On the live sign-in screen, click the **"Click to Autofill"** badge to instantly populate the credentials.
+
+Seeded with a 16-25 Railcard (34% off) and two confirmed passes in the wallet. New passenger accounts can also be created from the **Create Account** tab.
 
 ### Passenger identity rules
 
@@ -133,7 +139,9 @@ The monitor sweeps about once a minute, so the exact three-hour boundary is enfo
 `hasVanished` on the way out of `GET /api/bookings`, with the physical delete following
 moments later.
 
-## Running in production (single port)
+## Production & Cloud Deployment
+
+### Local Production Build (Single Port)
 
 ```powershell
 cd frontend; npm run build
@@ -141,8 +149,16 @@ cd backend;  npm run build
 cd backend;  npm start      # UI + API together on port 5000
 ```
 
-The backend auto-detects `frontend/dist` and serves it with an SPA fallback. Delete that
-folder and the server falls back to API-only mode.
+The backend auto-detects `frontend/dist` and serves it with an SPA fallback.
+
+### Live Cloud Deployment (Render + MongoDB Atlas)
+
+The project is hosted live on **Render** backed by a **MongoDB Atlas** M0 cluster:
+- **Live URL:** [https://uk-rail-reservation.onrender.com/](https://uk-rail-reservation.onrender.com/)
+- **Build Command:** `cd frontend && npm install && npm run build && cd ../backend && npm install && npm run build`
+- **Start Command:** `cd backend && npm start`
+- **Environment Variable:** `MONGODB_URI` pointing to the cloud MongoDB Atlas connection string.
+- On initial startup, the backend automatically seeds the National Rail station database, demo passenger (`arthur.pendelton@gmail.com`), and sample wallet tickets.
 
 ---
 
