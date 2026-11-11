@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, ChevronDown, RefreshCw, ShieldCheck, ShoppingBag, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, ChevronDown, RefreshCw, ShieldCheck, ShoppingBag, X } from 'lucide-react';
 import { usePantry, type CartItem, type PantryPassenger } from '../context/PantryContext';
 import { postCateringOrders } from '../lib/api';
 
 interface PantryCartDrawerProps {
   open: boolean;
   onClose: () => void;
+  /**
+   * Present during the pre-confirmation booking flow: clicking the drawer CTA
+   * confirms the meal allocations and moves straight to unified TicketSummary
+   * without triggering a separate payment or clearing the cart.
+   */
+  onConfirmSelections?: () => void;
 }
 
 function money(value: number): string {
@@ -21,7 +27,7 @@ function money(value: number): string {
  * catalogue the board reads, less the First Class Advance concession the fare
  * earns. The order is only cleared once the API has accepted it.
  */
-export function PantryCartDrawer({ open, onClose }: PantryCartDrawerProps) {
+export function PantryCartDrawer({ open, onClose, onConfirmSelections }: PantryCartDrawerProps) {
   const {
     cartItems,
     itemCount,
@@ -37,8 +43,11 @@ export function PantryCartDrawer({ open, onClose }: PantryCartDrawerProps) {
     deliveryMilestone,
     clearCart,
     getPassengerTotal,
+    buildPassengerOrderPayloads,
     recordOrder,
   } = usePantry();
+
+  const isBookingFlow = Boolean(onConfirmSelections);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,8 +155,15 @@ export function PantryCartDrawer({ open, onClose }: PantryCartDrawerProps) {
     if (!submittingRef.current) onClose();
   }, [onClose]);
 
-  const handleDispatch = async () => {
+  const handleConfirmOrDispatch = async () => {
     if (!assignment || !isSeatBound || parties.length === 0 || submittingRef.current) return;
+
+    if (onConfirmSelections) {
+      clearOnExitRef.current = false;
+      onClose();
+      onConfirmSelections();
+      return;
+    }
 
     if (!assignment.pnr) {
       setError('This seat is not linked to a booking reference yet.');
@@ -162,22 +178,7 @@ export function PantryCartDrawer({ open, onClose }: PantryCartDrawerProps) {
       const result = await postCateringOrders({
         bookingReference: assignment.pnr,
         deliveryMilestone,
-        passengerOrders: parties.map(({ passenger, lines }) => ({
-          passengerId: passenger.id,
-          passengerName: passenger.name,
-          assignedCoach: passenger.coach,
-          assignedSeat: passenger.seat,
-          items: lines.map((line) => ({
-            itemId: line.item.id,
-            name: line.item.name,
-            quantity: line.quantity,
-            unitPrice: line.item.price,
-          })),
-          subtotal:
-            Math.round(
-              lines.reduce((sum, line) => sum + line.item.price * line.quantity, 0) * 100
-            ) / 100,
-        })),
+        passengerOrders: buildPassengerOrderPayloads(),
       });
 
       const accepted = result.updatedOrders.slice(-parties.length);
@@ -255,11 +256,12 @@ export function PantryCartDrawer({ open, onClose }: PantryCartDrawerProps) {
                     id="pantry-checkout-title"
                     className="text-base font-bold uppercase tracking-wide text-[#0B192C]"
                   >
-                    Dispatch to seat
+                    {isBookingFlow ? 'Confirm Dining Selections' : 'Dispatch to seat'}
                   </h2>
                 </div>
                 <p className="mt-1 font-mono text-[10px] text-gray-500">
-                  {itemCount} {itemCount === 1 ? 'item' : 'items'} · Ref {assignment?.pnr ?? '—'}
+                  {itemCount} {itemCount === 1 ? 'item' : 'items'} ·{' '}
+                  {isBookingFlow ? 'Added to ticket settlement' : `Ref ${assignment?.pnr ?? '—'}`}
                 </p>
               </div>
 
@@ -472,7 +474,9 @@ export function PantryCartDrawer({ open, onClose }: PantryCartDrawerProps) {
                 </div>
 
                 <p className="text-[9px] uppercase tracking-wider text-gray-500">
-                  VAT included · Charged to the card on file
+                  {isBookingFlow
+                    ? 'VAT included · Settled in one payment with your rail ticket'
+                    : 'VAT included · Charged to the card on file'}
                 </p>
               </div>
 
@@ -489,7 +493,7 @@ export function PantryCartDrawer({ open, onClose }: PantryCartDrawerProps) {
               <div className="px-5 pb-5">
                 <button
                   type="button"
-                  onClick={handleDispatch}
+                  onClick={handleConfirmOrDispatch}
                   disabled={!isSeatBound || parties.length === 0 || submitting}
                   className={`flex h-11 w-full items-center justify-center gap-2 border text-[10px] font-bold uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-railAmber ${
                     !isSeatBound || parties.length === 0
@@ -507,6 +511,12 @@ export function PantryCartDrawer({ open, onClose }: PantryCartDrawerProps) {
                       />
                       Dispatching all orders…
                     </>
+                  ) : isBookingFlow ? (
+                    <>
+                      <ShieldCheck className="h-3.5 w-3.5 text-railAmber" aria-hidden="true" />
+                      <span>Confirm Selections</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-railAmber" aria-hidden="true" />
+                    </>
                   ) : (
                     <>
                       <ShieldCheck className="h-3.5 w-3.5 text-railAmber" aria-hidden="true" />
@@ -516,7 +526,9 @@ export function PantryCartDrawer({ open, onClose }: PantryCartDrawerProps) {
                 </button>
 
                 <p className="mt-2 text-center font-mono text-[9px] uppercase tracking-wider text-gray-500">
-                  The galley confirms every line before the trolley leaves
+                  {isBookingFlow
+                    ? 'Transitions to unified ticket & catering checkout'
+                    : 'The galley confirms every line before the trolley leaves'}
                 </p>
               </div>
             </div>

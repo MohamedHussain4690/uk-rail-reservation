@@ -201,7 +201,13 @@ export function TicketWallet() {
                       {booking.fareName}
                     </span>
                     <span className="font-bold text-[#0B192C]">
-                      £{booking.price.toFixed(2)}
+                      £{(booking.totalFare ?? booking.price).toFixed(2)}
+                      {booking.foodTotal > 0 && (
+                        <span className="text-gray-500 font-normal">
+                          {' '}
+                          (rail £{booking.price.toFixed(2)} + dining £{booking.foodTotal.toFixed(2)})
+                        </span>
+                      )}
                       {passengers.length > 1 && (
                         <span className="text-gray-400 font-normal"> · {passengers.length} pax</span>
                       )}

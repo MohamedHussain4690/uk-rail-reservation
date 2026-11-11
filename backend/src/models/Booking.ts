@@ -70,6 +70,14 @@ export function cateringTotal(
   return Math.round(total * 100) / 100;
 }
 
+/** Sum of net catering order totals on a booking, rounded to the penny. */
+export function cateringOrdersTotal(
+  orders: ReadonlyArray<Pick<ICateringOrder, 'totalAmount'>>
+): number {
+  const total = orders.reduce((sum, order) => sum + (Number(order.totalAmount) || 0), 0);
+  return Math.round(total * 100) / 100;
+}
+
 /**
  * First Class Advance fares include a 10% at-seat concession. This is the
  * authoritative rule; the pantry board mirrors it for the bill, and the order
@@ -103,8 +111,12 @@ export interface IBooking extends Document {
   fareName: string;
   /** Price for one passenger, after the railcard concession. */
   unitPrice: number;
-  /** Total charged: unitPrice × passengers.length. */
+  /** Rail fare total charged: unitPrice × passengers.length. */
   price: number;
+  /** Total at-seat catering spend across embedded orders (0 if skipped). */
+  foodTotal: number;
+  /** Unified settlement total: rail price + foodTotal. */
+  totalFare: number;
   passengers: IBookingPassenger[];
   /** At-seat catering orders tied to this reservation. */
   cateringOrders: ICateringOrder[];
@@ -187,6 +199,8 @@ const bookingSchema = new Schema<IBooking>(
     fareName: { type: String, required: true, trim: true },
     unitPrice: { type: Number, required: true, min: 0 },
     price: { type: Number, required: true, min: 0 },
+    foodTotal: { type: Number, default: 0, min: 0 },
+    totalFare: { type: Number, min: 0 },
     passengers: {
       type: [passengerSchema],
       validate: {
@@ -232,6 +246,9 @@ bookingSchema.pre('validate', function () {
     }
     order.totalAmount = Math.round((gross - discount) * 100) / 100;
   }
+
+  this.foodTotal = cateringOrdersTotal(this.cateringOrders ?? []);
+  this.totalFare = Math.round(((Number(this.price) || 0) + this.foodTotal) * 100) / 100;
 });
 
 /**
@@ -288,6 +305,8 @@ export interface PublicBooking {
   fareName: string;
   unitPrice: number;
   price: number;
+  foodTotal: number;
+  totalFare: number;
   passengerCount: number;
   passengers: IBookingPassenger[];
   /** At-seat catering orders, oldest first. */
@@ -302,6 +321,10 @@ export interface PublicBooking {
 
 export function toPublicBooking(booking: IBooking): PublicBooking {
   const passengers = booking.passengers ?? [];
+  const orders = booking.cateringOrders ?? [];
+  const foodTotal = booking.foodTotal ?? cateringOrdersTotal(orders);
+  const totalFare =
+    booking.totalFare ?? Math.round(((Number(booking.price) || 0) + foodTotal) * 100) / 100;
 
   return {
     id: booking._id.toString(),
@@ -316,6 +339,8 @@ export function toPublicBooking(booking: IBooking): PublicBooking {
     fareName: booking.fareName,
     unitPrice: booking.unitPrice,
     price: booking.price,
+    foodTotal,
+    totalFare,
     passengerCount: passengers.length,
     passengers: passengers.map((passenger) => ({
       name: passenger.name,

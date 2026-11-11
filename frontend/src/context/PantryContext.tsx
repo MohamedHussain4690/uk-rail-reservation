@@ -6,7 +6,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Booking, getBookings } from '../lib/api';
+import { Booking, PassengerCateringOrderRequest, getBookings } from '../lib/api';
 import { toLocalIsoDate } from '../lib/date';
 import {
   DELIVERY_WINDOWS,
@@ -167,6 +167,12 @@ interface PantryContextValue {
   setDeliveryWindow: (id: string) => void;
   /** Milestone string written onto the order, e.g. "Mid-Journey Service (15:00 - 15:20)". */
   deliveryMilestone: string;
+  /** Number of distinct passengers with items currently in the catering cart. */
+  orderedPassengerCount: number;
+  /** Build API-ready per-passenger catering payloads from the active cart. */
+  buildPassengerOrderPayloads: () => PassengerCateringOrderRequest[];
+  /** Re-fetch wallet reservations so standalone Dining reflects recent purchases. */
+  refreshWallet: () => void;
 
   /** The most recent accepted order, shown on the board after the sheet closes. */
   lastOrder: DispatchedOrder | null;
@@ -317,6 +323,19 @@ export function PantryProvider({
   const [deliveryWindowId, setDeliveryWindowId] = useState<string>(DELIVERY_WINDOWS[0].id);
   const [lastOrder, setLastOrder] = useState<DispatchedOrder | null>(null);
 
+  const refreshWallet = useCallback(() => {
+    getBookings()
+      .then((bookings) => {
+        setWallet(nextUpcomingSeat(bookings));
+      })
+      .catch(() => {
+        setWallet(null);
+      })
+      .finally(() => {
+        setWalletSettled(true);
+      });
+  }, []);
+
   // Returning passengers can order against a trip they booked earlier. The
   // booking flow overrides this the moment a seat is chosen.
   useEffect(() => {
@@ -363,6 +382,43 @@ export function PantryProvider({
     reservation === undefined && manual === undefined && !walletSettled;
 
   const passengers = useMemo(() => assignment?.passengers ?? [], [assignment]);
+
+  // Keep reservation-bound cart lines aligned if the user edits seats or names
+  // mid-booking so stale seats never fail checkout validation.
+  useEffect(() => {
+    if (assignmentSource !== 'reservation') return;
+    const byId = new Map(passengers.map((p) => [p.id, p]));
+
+    setCartItems((previous) => {
+      let changed = false;
+      const next: CartItem[] = [];
+
+      for (const line of previous) {
+        const current = byId.get(line.passengerId);
+        if (!current) {
+          changed = true;
+          continue;
+        }
+        if (
+          line.passengerName !== current.name ||
+          line.assignedCoach !== current.coach ||
+          line.assignedSeat !== current.seat
+        ) {
+          changed = true;
+          next.push({
+            ...line,
+            passengerName: current.name,
+            assignedCoach: current.coach,
+            assignedSeat: current.seat,
+          });
+        } else {
+          next.push(line);
+        }
+      }
+
+      return changed ? next : previous;
+    });
+  }, [assignmentSource, passengers]);
 
   // Keep the selection valid when the bound reservation changes underneath us.
   const resolvedActivePassengerId = passengers.some(
@@ -485,17 +541,85 @@ export function PantryProvider({
   /** The whole party's lines; identical to subtotal, named for the multi rail. */
   const combinedTotal = subtotal;
 
-  // First Class Advance passengers order against a concession; every other
-  // fare pays the board price. The server applies the same rule on checkout.
-  const concession = useMemo(
-    () => firstClassConcession(assignment?.fareType, assignment?.fareName, subtotal),
-    [assignment?.fareType, assignment?.fareName, subtotal]
-  );
+  // Match backend per-passenger First Class Advance concession calculation to
+  // the penny across single and multi-passenger parties.
+  const concession = useMemo(() => {
+    const byPassenger = new Map<string, number>();
+    for (const line of cartItems) {
+      byPassenger.set(
+        line.passengerId,
+        (byPassenger.get(line.passengerId) ?? 0) + line.item.price * line.quantity
+      );
+    }
+
+    let totalDiscount = 0;
+    let label = '';
+    for (const rawSub of byPassenger.values()) {
+      const pSubtotal = Math.round(rawSub * 100) / 100;
+      const entry = firstClassConcession(assignment?.fareType, assignment?.fareName, pSubtotal);
+      if (entry) {
+        totalDiscount += entry.amount;
+        label = entry.label;
+      }
+    }
+
+    const rounded = Math.round(totalDiscount * 100) / 100;
+    return rounded > 0 ? { label, amount: rounded } : null;
+  }, [assignment?.fareType, assignment?.fareName, cartItems]);
 
   const total = useMemo(
     () => Math.round((subtotal - (concession?.amount ?? 0)) * 100) / 100,
     [subtotal, concession]
   );
+
+  const orderedPassengerCount = useMemo(
+    () => new Set(cartItems.map((line) => line.passengerId)).size,
+    [cartItems]
+  );
+
+  const buildPassengerOrderPayloads = useCallback((): PassengerCateringOrderRequest[] => {
+    const byPassenger = new Map<string, { passenger: PantryPassenger; lines: CartItem[] }>();
+
+    for (const passenger of passengers) {
+      byPassenger.set(passenger.id, { passenger, lines: [] });
+    }
+
+    for (const line of cartItems) {
+      const existing = byPassenger.get(line.passengerId);
+      if (existing) {
+        existing.lines.push(line);
+      } else {
+        byPassenger.set(line.passengerId, {
+          passenger: {
+            id: line.passengerId,
+            name: line.passengerName,
+            coach: line.assignedCoach,
+            seat: line.assignedSeat,
+          },
+          lines: [line],
+        });
+      }
+    }
+
+    return [...byPassenger.values()]
+      .filter((group) => group.lines.length > 0)
+      .map(({ passenger, lines }) => ({
+        passengerId: passenger.id,
+        passengerName: passenger.name,
+        assignedCoach: passenger.coach,
+        assignedSeat: passenger.seat,
+        items: lines.map((line) => ({
+          itemId: line.item.id,
+          name: line.item.name,
+          quantity: line.quantity,
+          unitPrice: line.item.price,
+        })),
+        subtotal:
+          Math.round(
+            lines.reduce((sum, line) => sum + line.item.price * line.quantity, 0) * 100
+          ) / 100,
+      }));
+  }, [passengers, cartItems]);
 
   const bindToSeat = useCallback(
     (coach: string, seat: string, extras?: { passengerName?: string; pnr?: string }) => {
@@ -566,6 +690,9 @@ export function PantryProvider({
       deliveryWindow,
       setDeliveryWindow,
       deliveryMilestone,
+      orderedPassengerCount,
+      buildPassengerOrderPayloads,
+      refreshWallet,
       lastOrder,
       recordOrder,
       clearLastOrder,
@@ -597,6 +724,9 @@ export function PantryProvider({
       deliveryWindow,
       setDeliveryWindow,
       deliveryMilestone,
+      orderedPassengerCount,
+      buildPassengerOrderPayloads,
+      refreshWallet,
       lastOrder,
       recordOrder,
       clearLastOrder,

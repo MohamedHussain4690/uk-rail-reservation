@@ -1,8 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Train, CheckCircle2, QrCode, Printer, ArrowRight, UtensilsCrossed
+  Train,
+  CheckCircle2,
+  QrCode,
+  Printer,
+  ArrowRight,
+  UtensilsCrossed,
+  CreditCard,
+  ShieldCheck,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { BookingPassenger, getBookings } from '../lib/api';
+import { usePantry } from '../context/PantryContext';
 import type { CateringOrder, DeliveryStatus } from '../data/pantryMenu';
 
 /** The four states an at-seat order moves through after checkout. */
@@ -39,6 +49,7 @@ interface TicketSummaryProps {
   fare: {
     name: string;
     price: number;
+    originalPrice?: number;
     type: string;
   };
   route: {
@@ -49,38 +60,364 @@ interface TicketSummaryProps {
   };
   passengers: BookingPassenger[];
   unitPrice: number;
-  pnr: string;
+  cardholderName?: string;
+  railcardLabel?: string;
+  pnr?: string;
   message?: string;
+  initialCateringOrders?: CateringOrder[];
+  foodTotal?: number;
+  totalFare?: number;
+  isSubmitting?: boolean;
+  bookingError?: string | null;
+  onConfirmAndPay?: () => void;
+  onBackToDining?: () => void;
+  onBackToSeats?: () => void;
   onNewBooking: () => void;
 }
 
-export function TicketSummary({ fare, route, passengers, unitPrice, pnr, message, onNewBooking }: TicketSummaryProps) {
-  const total = unitPrice * passengers.length;
+export function TicketSummary({
+  fare,
+  route,
+  passengers,
+  unitPrice,
+  cardholderName,
+  railcardLabel,
+  pnr,
+  message,
+  initialCateringOrders,
+  foodTotal,
+  totalFare,
+  isSubmitting = false,
+  bookingError,
+  onConfirmAndPay,
+  onBackToDining,
+  onBackToSeats,
+  onNewBooking,
+}: TicketSummaryProps) {
   const coachLabel = (coach: string) => coach.split('(')[0].trim();
 
-  // The reservation owns its catering orders, so read them back from the API
-  // rather than relying on the (possibly stale) booking response captured at
-  // checkout. Returning to this tab after ordering remounts the component and
-  // refreshes the coupon automatically.
-  const [cateringOrders, setCateringOrders] = useState<CateringOrder[]>([]);
+  const {
+    itemCount: pantryItemCount,
+    orderedPassengerCount,
+    concession: cateringConcession,
+    total: pantryTotal,
+    deliveryMilestone,
+  } = usePantry();
+
+  const railNetTotal = Number((unitPrice * passengers.length).toFixed(2));
+  const perPassengerOriginal =
+    fare.originalPrice && fare.originalPrice > unitPrice ? fare.originalPrice : unitPrice;
+  const railGrossTotal = Number((perPassengerOriginal * passengers.length).toFixed(2));
+  const railcardDeduction = Number(Math.max(0, railGrossTotal - railNetTotal).toFixed(2));
+
+  // The reservation owns its catering orders once issued, so read them back from
+  // the API rather than relying only on initial props. During pre-confirmation
+  // checkout (!pnr), skip the wallet lookup and read live pantry cart totals.
+  const [cateringOrders, setCateringOrders] = useState<CateringOrder[]>(
+    () => initialCateringOrders ?? []
+  );
 
   useEffect(() => {
+    if (initialCateringOrders) {
+      setCateringOrders(initialCateringOrders);
+    }
+  }, [initialCateringOrders]);
+
+  useEffect(() => {
+    if (!pnr) return;
     let cancelled = false;
 
     getBookings()
       .then((bookings) => {
         if (cancelled) return;
         const reservation = bookings.find((entry) => entry.pnr === pnr);
-        setCateringOrders(reservation?.cateringOrders ?? []);
+        if (reservation) {
+          setCateringOrders(reservation.cateringOrders ?? []);
+        }
       })
       .catch(() => {
-        if (!cancelled) setCateringOrders([]);
+        // Keep initialCateringOrders intact if background refresh fails.
       });
 
     return () => {
       cancelled = true;
     };
   }, [pnr]);
+
+  // Pre-confirmation unified checkout view
+  if (!pnr) {
+    const hasCatering = pantryItemCount > 0;
+    const cateringCharge = hasCatering ? pantryTotal : 0;
+    const combinedTotal = Number((railNetTotal + cateringCharge).toFixed(2));
+
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto text-[#0B192C]">
+        <div className="bg-white border border-[#0B192C]/12 p-5 sm:p-8 space-y-6 shadow-sm">
+          {/* Header */}
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#0B192C]/12">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-[#0B192C] text-white flex items-center justify-center border border-[#0B192C]">
+                <ShieldCheck className="w-5 h-5 text-railAmber" />
+              </div>
+              <div>
+                <h2 className="font-bold text-base leading-tight uppercase tracking-wide">
+                  Unified Transit &amp; Catering Checkout
+                </h2>
+                <p className="text-xs text-gray-500 font-mono">
+                  National Rail Financial Clearinghouse • Single-Settlement Gateway
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 text-xs font-mono">
+              {onBackToDining && (
+                <button
+                  type="button"
+                  onClick={onBackToDining}
+                  className="text-[#0B192C] hover:underline font-bold"
+                >
+                  {hasCatering ? 'Edit Dining Selections' : '+ Add At-Seat Dining'}
+                </button>
+              )}
+              {onBackToSeats && (
+                <button
+                  type="button"
+                  onClick={onBackToSeats}
+                  className="text-gray-600 hover:text-[#0B192C] underline"
+                >
+                  ← Back to Seat Selection
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Left column: Payment card details & seat manifest */}
+            <div className="lg:col-span-5 space-y-5">
+              <div className="space-y-3 border border-[#0B192C]/12 bg-[#F8F9FA] p-4 font-mono text-xs">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                  Journey &amp; Reserved Seats
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-gray-500">Route</span>
+                  <span className="font-bold text-[#0B192C]">
+                    {route.origin.code} → {route.destination.code}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-gray-500">Departure</span>
+                  <span className="font-bold text-[#0B192C]">
+                    {route.date} @ {route.time}
+                  </span>
+                </div>
+                <div className="border-t border-[#0B192C]/12 pt-2 space-y-1">
+                  {passengers.map((passenger, index) => (
+                    <div key={index} className="flex justify-between gap-2">
+                      <span className="truncate text-gray-600">
+                        P{index + 1} · {passenger.name}
+                      </span>
+                      <span className="font-bold text-emerald-700 whitespace-nowrap">
+                        {coachLabel(passenger.coach)} — Seat {passenger.seat}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-gray-600 uppercase">
+                    Cardholder Name
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue={cardholderName || passengers[0]?.name || ''}
+                    className="w-full px-3 py-2 bg-gray-50 border border-[#0B192C]/12 text-sm font-medium text-[#0B192C]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-gray-600 uppercase">
+                    Card Number
+                  </label>
+                  <div className="relative">
+                    <CreditCard className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      defaultValue="4921 •••• •••• 8842"
+                      className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-[#0B192C]/12 text-sm font-mono text-[#0B192C]"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-gray-600 uppercase">
+                      Expiry Date
+                    </label>
+                    <input
+                      type="text"
+                      defaultValue="08/28"
+                      className="w-full px-3 py-2 bg-gray-50 border border-[#0B192C]/12 text-sm font-mono text-[#0B192C]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-gray-600 uppercase">
+                      CVV / CVC
+                    </label>
+                    <input
+                      type="password"
+                      defaultValue="382"
+                      className="w-full px-3 py-2 bg-gray-50 border border-[#0B192C]/12 text-sm font-mono text-[#0B192C]"
+                    />
+                  </div>
+                </div>
+                <label className="flex items-center space-x-2 pt-1 text-xs text-gray-600">
+                  <input type="checkbox" defaultChecked className="text-[#0B192C]" />
+                  <span>Send e-ticket PDF, Aztec pass and catering vouchers</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Right column: Itemized Single-Settlement Table */}
+            <div className="lg:col-span-7 border border-[#0B192C]/12 bg-[#F8F9FA] p-5 sm:p-6 space-y-5">
+              <div>
+                <div className="flex items-center justify-between gap-2 border-b border-[#0B192C]/12 pb-3">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-[#0B192C]">
+                    Itemized Single-Settlement Bill
+                  </h3>
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-gray-500">
+                    One Combined Charge
+                  </span>
+                </div>
+
+                <div className="divide-y divide-[#0B192C]/12 text-xs">
+                  {/* Line 1: Rail Fare */}
+                  <div className="flex items-baseline justify-between gap-4 py-3.5">
+                    <div>
+                      <div className="font-semibold text-[#0B192C]">
+                        {fare.name} Rail Fare (x{passengers.length})
+                      </div>
+                      <div className="font-mono text-[10px] text-gray-500">
+                        £{perPassengerOriginal.toFixed(2)} per passenger · {fare.type}
+                      </div>
+                    </div>
+                    <span className="font-mono font-bold tabular-nums text-[#0B192C]">
+                      £{railGrossTotal.toFixed(2)}
+                    </span>
+                  </div>
+
+                  {/* Line 2: Railcard Concession Deduction (if applicable) */}
+                  {railcardDeduction > 0 && (
+                    <div className="flex items-baseline justify-between gap-4 py-3.5">
+                      <div>
+                        <div className="font-semibold text-emerald-700">
+                          Railcard Concession Deduction
+                        </div>
+                        {railcardLabel && (
+                          <div className="font-mono text-[10px] text-emerald-700/80">
+                            {railcardLabel}
+                          </div>
+                        )}
+                      </div>
+                      <span className="font-mono font-bold tabular-nums text-emerald-700">
+                        -£{railcardDeduction.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Line 3: At-Seat Galley Catering */}
+                  <div className="flex items-baseline justify-between gap-4 py-3.5">
+                    <div>
+                      <div className="font-semibold text-[#0B192C]">
+                        {hasCatering
+                          ? `At-Seat Galley Catering (${pantryItemCount} ${
+                              pantryItemCount === 1 ? 'item' : 'items'
+                            } ordered across ${orderedPassengerCount} ${
+                              orderedPassengerCount === 1 ? 'passenger' : 'passengers'
+                            })`
+                          : 'At-Seat Galley Catering'}
+                      </div>
+                      <div className="font-mono text-[10px] text-gray-500">
+                        {hasCatering ? (
+                          <>
+                            Window: {deliveryMilestone}
+                            {cateringConcession && cateringConcession.amount > 0 && (
+                              <span className="text-emerald-700">
+                                {' '}
+                                · Net of -£{cateringConcession.amount.toFixed(2)} concession
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          'No trolley catering added for this reservation'
+                        )}
+                      </div>
+                    </div>
+                    <span
+                      className={`font-mono font-bold tabular-nums whitespace-nowrap ${
+                        hasCatering ? 'text-[#0B192C]' : 'text-gray-500'
+                      }`}
+                    >
+                      {hasCatering ? `£${cateringCharge.toFixed(2)}` : 'Declined / £0.00'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Line 4: Space Mono Total Banner */}
+                <div className="mt-2 bg-[#0B192C] text-white px-4 py-3.5 border border-[#0B192C] flex items-center justify-between gap-3 font-mono">
+                  <span className="text-xs font-bold uppercase tracking-[0.14em] text-railAmber">
+                    TOTAL CHARGEABLE:
+                  </span>
+                  <span className="text-xl font-bold tabular-nums text-white">
+                    £{combinedTotal.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {bookingError && (
+                <div className="bg-red-50 border border-red-300 p-3 text-[11px] font-mono text-red-800 flex items-start space-x-2">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span>Booking failed — {bookingError}</span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={onConfirmAndPay}
+                disabled={isSubmitting || !onConfirmAndPay}
+                className="w-full bg-[#0B192C] hover:bg-slate-800 text-white py-3.5 px-5 text-xs font-bold uppercase tracking-wider flex items-center justify-center space-x-2 border border-[#0B192C] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 text-railAmber animate-spin" />
+                    <span>Authorising £{combinedTotal.toFixed(2)} with National Rail…</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4 text-railAmber" />
+                    <span>CONFIRM &amp; PAY £{combinedTotal.toFixed(2)}</span>
+                    <ArrowRight className="w-4 h-4 text-railAmber" />
+                  </>
+                )}
+              </button>
+
+              <p className="text-center font-mono text-[9px] uppercase tracking-wider text-gray-500">
+                Atomic booking · Rail seats and galley orders issue on one PNR reference
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const resolvedFoodTotal =
+    cateringOrders.length > 0
+      ? Math.round(cateringOrders.reduce((sum, order) => sum + order.totalAmount, 0) * 100) / 100
+      : foodTotal ?? 0;
+  const total =
+    totalFare !== undefined && cateringOrders.length === (initialCateringOrders?.length ?? 0)
+      ? totalFare
+      : Number((railNetTotal + resolvedFoodTotal).toFixed(2));
 
   // A batch writes one order per passenger; count seats rather than orders so
   // a passenger who ordered twice still counts once in the section summary.
@@ -125,7 +462,9 @@ export function TicketSummary({ fare, route, passengers, unitPrice, pnr, message
             <div className="text-right">
               <div className="text-2xl font-bold">£{total.toFixed(2)}</div>
               <div className="text-[10px] text-slate-900/80">
-                {passengers.length === 1
+                {resolvedFoodTotal > 0
+                  ? `RAIL £${railNetTotal.toFixed(2)} + DINING £${resolvedFoodTotal.toFixed(2)}`
+                  : passengers.length === 1
                   ? 'STANDARD CLASS'
                   : `${passengers.length} × £${unitPrice.toFixed(2)} · STANDARD CLASS`}
               </div>
@@ -164,6 +503,7 @@ export function TicketSummary({ fare, route, passengers, unitPrice, pnr, message
               <span>Passenger Manifest</span>
               <span>
                 {passengers.length} {passengers.length === 1 ? 'Traveller' : 'Travellers'} · Total £{total.toFixed(2)}
+                {resolvedFoodTotal > 0 ? ` (incl. £${resolvedFoodTotal.toFixed(2)} catering)` : ''}
               </span>
             </div>
             <div className="space-y-1">

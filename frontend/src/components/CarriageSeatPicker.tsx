@@ -130,6 +130,7 @@ const COACHES: Coach[] = [
 interface CarriageSeatPickerProps {
   passengerCount: number;
   leadPassengerName: string;
+  initialPassengers?: BookingPassenger[] | null;
   /** Travel date and departure, used to look up seats already sold. */
   date: string;
   time: string;
@@ -145,12 +146,29 @@ function seatKey(coach: string, seat: string): string {
 export function CarriageSeatPicker({
   passengerCount,
   leadPassengerName,
+  initialPassengers,
   date,
   time,
   onConfirmSeats,
   onBack,
 }: CarriageSeatPickerProps) {
-  const [selectedCoachId, setSelectedCoachId] = useState<string>('coach-b');
+  const initialAssignments = (() =>
+    Array.from({ length: passengerCount }, (_, index) => {
+      const saved = initialPassengers?.[index];
+      if (!saved) return null;
+      const coach = COACHES.find(
+        (c) => c.name.toLowerCase() === saved.coach.trim().toLowerCase()
+      );
+      if (!coach) return null;
+      const seat = coach.seats.find(
+        (s) => s.number.toUpperCase() === saved.seat.trim().toUpperCase()
+      );
+      return seat ? { coach, seat } : null;
+    }))();
+
+  const [selectedCoachId, setSelectedCoachId] = useState<string>(
+    () => initialAssignments.find(Boolean)?.coach.id ?? 'coach-b'
+  );
   const [hoveredSeat, setHoveredSeat] = useState<Seat | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -182,11 +200,15 @@ export function CarriageSeatPicker({
     seat.status === 'reserved' || soldSeats.has(seatKey(coach.name, seat.number));
 
   const [names, setNames] = useState<string[]>(() =>
-    Array.from({ length: passengerCount }, (_, index) => (index === 0 ? leadPassengerName : ''))
+    Array.from({ length: passengerCount }, (_, index) => {
+      const savedName = initialPassengers?.[index]?.name?.trim();
+      if (savedName) return savedName;
+      return index === 0 ? leadPassengerName : '';
+    })
   );
 
-  const [assignments, setAssignments] = useState<(SeatAssignment | null)[]>(() =>
-    Array.from({ length: passengerCount }, () => null)
+  const [assignments, setAssignments] = useState<(SeatAssignment | null)[]>(
+    () => initialAssignments
   );
 
   const currentCoach = COACHES.find((coach) => coach.id === selectedCoachId) ?? COACHES[0];
@@ -551,7 +573,7 @@ export function CarriageSeatPicker({
           >
             <ShieldCheck className="w-4 h-4 text-railAmber" />
             <span>
-              Confirm {passengerCount} {passengerCount === 1 ? 'Seat' : 'Seats'} & Proceed to Payment
+              Confirm {passengerCount} {passengerCount === 1 ? 'Seat' : 'Seats'} &amp; Continue
             </span>
             <ArrowRight className="w-3.5 h-3.5 text-railAmber" />
           </button>

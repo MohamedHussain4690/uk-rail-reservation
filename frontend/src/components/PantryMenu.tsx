@@ -213,7 +213,20 @@ function PantryItemCard({
  * their own. Money is shown from the catalogue, which is the same table the
  * order payload is built from.
  */
-export function PantryMenu() {
+export interface PantryMenuProps {
+  /** Provided during pre-confirmation booking flow to proceed cleanly to TicketSummary checkout. */
+  onConfirmSelections?: () => void;
+  /** Provided during pre-confirmation booking flow to skip dining cleanly. */
+  onSkipDining?: () => void;
+  /** Optional back action to the pre-confirmation dining prompt. */
+  onBackToPrompt?: () => void;
+}
+
+export function PantryMenu({
+  onConfirmSelections,
+  onSkipDining,
+  onBackToPrompt,
+}: PantryMenuProps = {}) {
   const {
     menu,
     sections,
@@ -349,7 +362,7 @@ export function PantryMenu() {
             <div className="px-3 py-2">
               <div className="uppercase tracking-wider text-gray-500">Booking ref</div>
               <div className="mt-0.5 whitespace-nowrap text-xs font-bold">
-                {assignment?.pnr ?? '—'}
+                {assignment?.pnr ?? (onConfirmSelections ? 'Pending Checkout' : '—')}
               </div>
             </div>
             <div className="col-span-2 border-t border-[#0B192C]/12 px-3 py-2 sm:col-span-1 sm:border-t-0">
@@ -360,6 +373,31 @@ export function PantryMenu() {
             </div>
           </div>
         </div>
+
+        {(onBackToPrompt || onSkipDining) && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#0B192C]/12 pt-3">
+            {onBackToPrompt ? (
+              <button
+                type="button"
+                onClick={onBackToPrompt}
+                className="text-[11px] font-mono uppercase tracking-wider text-gray-500 hover:text-[#0B192C] hover:underline"
+              >
+                ← Back to Catering Options
+              </button>
+            ) : (
+              <span />
+            )}
+            {onSkipDining && (
+              <button
+                type="button"
+                onClick={onSkipDining}
+                className="border border-[#0B192C]/25 bg-white px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#0B192C] transition-colors hover:bg-[#F8F9FA]"
+              >
+                Skip &amp; Proceed to Checkout ➔
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Receipt from the last accepted order, kept until dismissed. */}
@@ -803,17 +841,23 @@ export function PantryMenu() {
                   isSeatBound && cartItems.length > 0 ? 'text-railAmber' : 'text-gray-400'
                 }`}
               />
-              Review &amp; Dispatch
+              {onConfirmSelections ? 'Review & Confirm Selections' : 'Review & Dispatch'}
             </button>
 
             <p className="mt-1.5 text-center text-[9px] font-mono uppercase tracking-wider text-gray-500">
-              Delivery point confirmed at checkout
+              {onConfirmSelections
+                ? 'Combined with rail fare at unified checkout'
+                : 'Delivery point confirmed at checkout'}
             </p>
           </div>
         </aside>
       </div>
 
-      <PantryCartDrawer open={checkoutOpen} onClose={closeCheckout} />
+      <PantryCartDrawer
+        open={checkoutOpen}
+        onClose={closeCheckout}
+        onConfirmSelections={onConfirmSelections}
+      />
     </div>
   );
 }

@@ -1,14 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Train, Clock, ShieldCheck, Search, ArrowRight, ArrowLeftRight,
-  MapPin, AlertTriangle, CheckCircle2, Ticket, CreditCard,
-  HelpCircle, ChevronRight, RefreshCw, Download, Filter, ExternalLink,
-  Info, AlertCircle, Sparkles, Terminal, Activity, FileText,
-  Mail, Code, Globe, ExternalLink as LinkIcon, LogOut
+  Train, Clock, CheckCircle2, RefreshCw, LogOut, UtensilsCrossed
 } from 'lucide-react';
 import { JourneyMatrix, FareOption } from './components/JourneyMatrix';
-import { ServiceTimetable, TrainService } from './components/ServiceTimetable';
+import { ServiceTimetable } from './components/ServiceTimetable';
 import { CarriageSeatPicker } from './components/CarriageSeatPicker';
 import { TicketSummary } from './components/TicketSummary';
 import { AuthScreen } from './components/AuthScreen';
@@ -18,7 +14,9 @@ import { PantryMenu } from './components/PantryMenu';
 import { createBooking, BookingResponse, Station, User, BookingPassenger } from './lib/api';
 import type { CateringOrder } from './data/pantryMenu';
 import { useAuth } from './lib/auth';
-import { PantryProvider, PantryReservation } from './context/PantryContext';
+import { PantryProvider, PantryReservation, usePantry } from './context/PantryContext';
+
+type BookingStep = 'matrix' | 'seats' | 'dining-prompt' | 'dining' | 'checkout' | 'confirmation';
 
 /**
  * The authenticated application shell.
@@ -29,15 +27,135 @@ import { PantryProvider, PantryReservation } from './context/PantryContext';
  * session.
  */
 function RailReservationApp({ user }: { user: User }) {
-  const { logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'planner' | 'departures' | 'tickets' | 'dining' | 'status' | 'profile'>('planner');
-  const [selectedFare, setSelectedFare] = useState<{ fare: FareOption; route: { origin: Station; destination: Station; date: string; time: string } } | null>(null);
+  const [selectedFare, setSelectedFare] = useState<{
+    fare: FareOption;
+    route: { origin: Station; destination: Station; date: string; time: string };
+  } | null>(null);
   const [selectedPassengers, setSelectedPassengers] = useState<BookingPassenger[] | null>(null);
   const [partySize, setPartySize] = useState(1);
   const [booking, setBooking] = useState<BookingResponse | null>(null);
+  const [bookingStep, setBookingStep] = useState<BookingStep>('matrix');
+
+  // The pantry follows the seat the passenger is actually holding: an issued
+  // pass first, then the seats chosen for the booking in progress. When there
+  // is neither, the provider falls back to the next confirmed wallet trip.
+  const pantryReservation = useMemo<PantryReservation | undefined>(() => {
+    const party = booking?.booking.passengers?.length
+      ? booking.booking.passengers
+      : selectedPassengers ?? [];
+    const passenger = party[0];
+    if (!passenger) return undefined;
+
+    const issued = booking?.booking ?? null;
+    const route = selectedFare?.route;
+
+    return {
+      coach: passenger.coach,
+      seat: passenger.seat,
+      passengerName: passenger.name,
+      passengers: party,
+      pnr: booking?.pnr,
+      origin: issued?.origin ?? route?.origin.name,
+      originCode: issued?.originCode ?? route?.origin.code,
+      destination: issued?.destination ?? route?.destination.name,
+      destinationCode: issued?.destinationCode ?? route?.destination.code,
+      date: issued?.date ?? route?.date,
+      time: issued?.time ?? route?.time,
+      fareType: issued?.fareType ?? selectedFare?.fare.type,
+      fareName: issued?.fareName ?? selectedFare?.fare.name,
+    };
+  }, [booking, selectedPassengers, selectedFare]);
+
+  // A dispatched batch rewrites the reservation's catering array on the
+  // server; mirror that authoritative array and food totals onto the pass held in this tab.
+  const handleReservationOrdersUpdated = useCallback((orders: CateringOrder[]) => {
+    const foodTotal = Math.round(orders.reduce((sum, order) => sum + order.totalAmount, 0) * 100) / 100;
+    setBooking((current) =>
+      current
+        ? {
+            ...current,
+            booking: {
+              ...current.booking,
+              cateringOrders: orders,
+              foodTotal,
+              totalFare: Math.round((current.booking.price + foodTotal) * 100) / 100,
+            },
+          }
+        : current
+    );
+  }, []);
+
+  return (
+    <PantryProvider
+      reservation={pantryReservation}
+      onReservationOrdersUpdated={handleReservationOrdersUpdated}
+    >
+      <RailReservationShell
+        user={user}
+        selectedFare={selectedFare}
+        setSelectedFare={setSelectedFare}
+        selectedPassengers={selectedPassengers}
+        setSelectedPassengers={setSelectedPassengers}
+        partySize={partySize}
+        setPartySize={setPartySize}
+        booking={booking}
+        setBooking={setBooking}
+        bookingStep={bookingStep}
+        setBookingStep={setBookingStep}
+      />
+    </PantryProvider>
+  );
+}
+
+interface RailReservationShellProps {
+  user: User;
+  selectedFare: {
+    fare: FareOption;
+    route: { origin: Station; destination: Station; date: string; time: string };
+  } | null;
+  setSelectedFare: React.Dispatch<
+    React.SetStateAction<{
+      fare: FareOption;
+      route: { origin: Station; destination: Station; date: string; time: string };
+    } | null>
+  >;
+  selectedPassengers: BookingPassenger[] | null;
+  setSelectedPassengers: React.Dispatch<React.SetStateAction<BookingPassenger[] | null>>;
+  partySize: number;
+  setPartySize: React.Dispatch<React.SetStateAction<number>>;
+  booking: BookingResponse | null;
+  setBooking: React.Dispatch<React.SetStateAction<BookingResponse | null>>;
+  bookingStep: BookingStep;
+  setBookingStep: React.Dispatch<React.SetStateAction<BookingStep>>;
+}
+
+function RailReservationShell({
+  user,
+  selectedFare,
+  setSelectedFare,
+  selectedPassengers,
+  setSelectedPassengers,
+  partySize,
+  setPartySize,
+  booking,
+  setBooking,
+  bookingStep,
+  setBookingStep,
+}: RailReservationShellProps) {
+  const { logout } = useAuth();
+  const {
+    buildPassengerOrderPayloads,
+    deliveryMilestone,
+    clearCart,
+    clearLastOrder,
+    refreshWallet,
+  } = usePantry();
+
+  const [activeTab, setActiveTab] = useState<
+    'planner' | 'departures' | 'tickets' | 'dining' | 'status' | 'profile'
+  >('planner');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
-  const [bookingStep, setBookingStep] = useState<'matrix' | 'seats' | 'payment' | 'confirmation'>('matrix');
   const [timeTicker, setTimeTicker] = useState(new Date().toLocaleTimeString());
 
   useEffect(() => {
@@ -81,6 +199,7 @@ function RailReservationApp({ user }: { user: User }) {
     setBookingError(null);
 
     try {
+      const passengerOrders = buildPassengerOrderPayloads();
       const result = await createBooking({
         origin: selectedFare.route.origin.name,
         originCode: selectedFare.route.origin.code,
@@ -90,8 +209,14 @@ function RailReservationApp({ user }: { user: User }) {
         time: selectedFare.route.time,
         fareType: selectedFare.fare.type,
         passengers: selectedPassengers,
+        ...(passengerOrders.length > 0
+          ? { catering: { deliveryMilestone, passengerOrders } }
+          : {}),
       });
 
+      clearCart();
+      clearLastOrder();
+      refreshWallet();
       setBooking(result);
       setBookingStep('confirmation');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -102,51 +227,17 @@ function RailReservationApp({ user }: { user: User }) {
     }
   };
 
-  // The pantry follows the seat the passenger is actually holding: an issued
-  // pass first, then the seats chosen for the booking in progress. When there
-  // is neither, the provider falls back to the next confirmed wallet trip.
-  const pantryReservation = useMemo<PantryReservation | undefined>(() => {
-    const party = booking?.booking.passengers?.length
-      ? booking.booking.passengers
-      : selectedPassengers ?? [];
-    const passenger = party[0];
-    if (!passenger) return undefined;
-
-    const issued = booking?.booking ?? null;
-    const route = selectedFare?.route;
-
-    return {
-      coach: passenger.coach,
-      seat: passenger.seat,
-      passengerName: passenger.name,
-      passengers: party,
-      pnr: booking?.pnr,
-      origin: issued?.origin ?? route?.origin.name,
-      originCode: issued?.originCode ?? route?.origin.code,
-      destination: issued?.destination ?? route?.destination.name,
-      destinationCode: issued?.destinationCode ?? route?.destination.code,
-      date: issued?.date ?? route?.date,
-      time: issued?.time ?? route?.time,
-      fareType: issued?.fareType ?? selectedFare?.fare.type,
-      fareName: issued?.fareName ?? selectedFare?.fare.name,
-    };
-  }, [booking, selectedPassengers, selectedFare]);
-
-  // A dispatched batch rewrites the reservation's catering array on the
-  // server; mirror that authoritative array onto the pass held in this tab.
-  const handleReservationOrdersUpdated = useCallback((orders: CateringOrder[]) => {
-    setBooking((current) =>
-      current
-        ? { ...current, booking: { ...current.booking, cateringOrders: orders } }
-        : current
-    );
-  }, []);
+  const handleResetToMatrix = () => {
+    clearCart();
+    clearLastOrder();
+    setBookingStep('matrix');
+    setBooking(null);
+    setSelectedPassengers(null);
+    setBookingError(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
-    <PantryProvider
-      reservation={pantryReservation}
-      onReservationOrdersUpdated={handleReservationOrdersUpdated}
-    >
       <div className="min-h-screen bg-[#F8F9FA] text-[#0B192C] flex flex-col font-sans transition-colors duration-200 print-sheet">
         {/* Live Status Ticker */}
         <div className="bg-[#0B192C] text-white px-4 py-2.5 text-xs font-mono tracking-wider flex items-center justify-between border-b border-white/10 overflow-hidden no-print">
@@ -267,6 +358,8 @@ function RailReservationApp({ user }: { user: User }) {
                     railcardType={user.railcard.type}
                     railcardDiscount={user.railcard.discountPercent}
                     onSelectFare={(fare, route, passengers) => {
+                      clearCart();
+                      clearLastOrder();
                       setSelectedFare({ fare, route });
                       setPartySize(passengers);
                       setSelectedPassengers(null);
@@ -283,135 +376,157 @@ function RailReservationApp({ user }: { user: User }) {
                 <CarriageSeatPicker
                   passengerCount={partySize}
                   leadPassengerName={user.name}
+                  initialPassengers={selectedPassengers}
                   date={selectedFare.route.date}
                   time={selectedFare.route.time}
                   onConfirmSeats={(passengers) => {
                     setSelectedPassengers(passengers);
-                    setBookingStep('payment');
+                    setBookingError(null);
+                    setBookingStep('dining-prompt');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                   onBack={() => setBookingStep('matrix')}
                 />
               )}
 
-              {bookingStep === 'payment' && selectedFare && (
-                <div className="bg-white border border-[#0B192C]/12 p-6 space-y-6 max-w-3xl mx-auto text-[#0B192C]">
-                  <div className="flex items-center justify-between pb-4 border-b border-[#0B192C]/12">
-                    <div>
-                      <h3 className="font-bold text-sm tracking-wide uppercase">Secure Payment Gateway</h3>
-                      <p className="text-xs text-gray-500 font-mono">National Rail Financial Clearinghouse • 256-Bit SSL Encrypted</p>
+              {bookingStep === 'dining-prompt' && selectedFare && selectedPassengers && (
+                <div className="max-w-3xl mx-auto bg-white border border-[#0B192C]/18 p-6 sm:p-8 shadow-sm space-y-6 text-[#0B192C]">
+                  <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#0B192C]/12 pb-5">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-railNavy text-white flex items-center justify-center border border-railNavy shrink-0">
+                        <UtensilsCrossed className="w-5 h-5 text-railAmber" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 bg-railAmber inline-block" aria-hidden="true" />
+                          <h2 className="text-base sm:text-lg font-bold uppercase tracking-wide text-railNavy">
+                            GALLEY &amp; PANTRY CATERING SERVICE
+                          </h2>
+                        </div>
+                        <p className="mt-1 text-sm text-gray-600">
+                          Fresh meals &amp; refreshments delivered directly to your reserved seat(s).
+                        </p>
+                      </div>
                     </div>
+
                     <button
+                      type="button"
                       onClick={() => setBookingStep('seats')}
-                      className="text-xs font-mono text-gray-600 hover:text-[#0B192C] underline"
+                      className="text-xs font-mono text-gray-600 hover:text-railNavy underline"
                     >
                       ← Back to Seat Selection
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-4">
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600 uppercase">Cardholder Name</label>
-                        <input type="text" defaultValue={user.name} className="w-full px-3 py-2.5 bg-gray-50 border border-[#0B192C]/12 text-sm font-medium text-[#0B192C]" />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-600 uppercase">Card Number</label>
-                        <div className="relative">
-                          <CreditCard className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                          <input type="text" defaultValue="4921 •••• •••• 8842" className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-[#0B192C]/12 text-sm font-mono text-[#0B192C]" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-gray-600 uppercase">Expiry Date</label>
-                          <input type="text" defaultValue="08/28" className="w-full px-3 py-2.5 bg-gray-50 border border-[#0B192C]/12 text-sm font-mono text-[#0B192C]" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-gray-600 uppercase">CVV / CVC</label>
-                          <input type="password" defaultValue="382" className="w-full px-3 py-2.5 bg-gray-50 border border-[#0B192C]/12 text-sm font-mono text-[#0B192C]" />
-                        </div>
-                      </div>
-
-                      <div className="pt-2">
-                        <label className="flex items-center space-x-2 text-xs text-gray-600">
-                          <input type="checkbox" defaultChecked className="text-[#0B192C]" />
-                          <span>Send e-ticket PDF and QR pass to registered device</span>
-                        </label>
-                      </div>
+                  {/* Reserved seat manifest summary */}
+                  <div className="border border-[#0B192C]/12 bg-[#F8F9FA] p-4 space-y-3 font-mono text-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#0B192C]/12 pb-2">
+                      <span className="text-[10px] uppercase tracking-wider text-gray-500">
+                        Reserved Seats Confirmed for Delivery
+                      </span>
+                      <span className="font-bold text-railNavy">
+                        {selectedFare.route.origin.code} → {selectedFare.route.destination.code} ·{' '}
+                        {selectedFare.route.date} @ {selectedFare.route.time}
+                      </span>
                     </div>
 
-                    <div className="bg-gray-50 border border-[#0B192C]/12 p-5 flex flex-col justify-between space-y-4">
-                      <div className="space-y-3">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-[#0B192C]">Selected Fare & Seat Summary</h4>
-                        <div className="space-y-2 text-xs font-mono border-b border-[#0B192C]/12 pb-3">
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Fare Type:</span>
-                            <span className="font-bold">{selectedFare.fare.name}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Route:</span>
-                            <span className="font-bold">{selectedFare.route.origin.code} → {selectedFare.route.destination.code}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Date & Time:</span>
-                            <span className="font-bold">{selectedFare.route.date} @ {selectedFare.route.time}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Passengers:</span>
-                            <span className="font-bold">
-                              {selectedPassengers?.length ?? 0} {(selectedPassengers?.length ?? 0) === 1 ? 'Adult' : 'Adults'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1.5 border-b border-[#0B192C]/12 pb-3">
-                          <div className="text-[10px] uppercase text-gray-500 font-mono">Seat Reservations</div>
-                          {selectedPassengers?.map((passenger, index) => (
-                            <div key={index} className="flex justify-between gap-3">
-                              <span className="text-gray-600 truncate">P{index + 1} · {passenger.name}</span>
-                              <span className="font-bold text-emerald-600 whitespace-nowrap">
-                                {passenger.coach.split('(')[0].trim()} — Seat {passenger.seat}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="flex justify-between items-center text-sm font-bold pt-2">
-                          <span>Total Due:</span>
-                          <span className="text-xl font-mono text-[#0B192C]">
-                            £{(selectedFare.fare.price * (selectedPassengers?.length ?? 1)).toFixed(2)}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {selectedPassengers.map((passenger, index) => (
+                        <div
+                          key={`${passenger.coach}-${passenger.seat}`}
+                          className="flex items-center justify-between gap-2 border border-[#0B192C]/12 bg-white px-3 py-2"
+                        >
+                          <span className="truncate font-sans font-semibold text-railNavy">
+                            P{index + 1} · {passenger.name}
+                          </span>
+                          <span className="shrink-0 font-bold text-emerald-700">
+                            {passenger.coach.split('(')[0].trim()} · {passenger.seat}
                           </span>
                         </div>
-                      </div>
-
-                      {bookingError && (
-                        <div className="bg-red-50 border border-red-300 p-3 text-[11px] font-mono text-red-800 flex items-start space-x-2">
-                          <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                          <span>Booking failed — {bookingError}</span>
-                        </div>
-                      )}
-
-                      <button
-                        onClick={handleAuthorizePayment}
-                        disabled={isSubmitting}
-                        className="w-full bg-[#0B192C] hover:bg-slate-800 text-white py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-center space-x-2 border border-[#0B192C] disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 text-railAmber animate-spin" />
-                            <span>Authorising with National Rail…</span>
-                          </>
-                        ) : (
-                          <>
-                            <ShieldCheck className="w-4 h-4 text-railAmber" />
-                            <span>Authorize Payment & Issue Pass</span>
-                          </>
-                        )}
-                      </button>
+                      ))}
                     </div>
+
+                    {selectedFare.fare.type === 'First Class' &&
+                      selectedFare.fare.name === 'First Class Advance' && (
+                        <p className="text-[10px] uppercase tracking-wider text-emerald-700 pt-1">
+                          First Class Advance privilege active: 10% at-seat catering concession applies automatically.
+                        </p>
+                      )}
+                  </div>
+
+                  {/* Prompt Actions: Option A & Option B */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBookingStep('dining');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="flex-1 bg-railNavy hover:bg-slate-800 text-white px-6 py-3.5 text-xs font-bold uppercase tracking-wider border border-railNavy transition-colors flex items-center justify-center gap-2"
+                    >
+                      <span>ADD AT-SEAT DINING ➔</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearCart();
+                        clearLastOrder();
+                        setBookingStep('checkout');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="flex-1 bg-white hover:bg-[#F8F9FA] text-railNavy px-6 py-3.5 text-xs font-bold uppercase tracking-wider border border-[#0B192C]/18 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <span>SKIP &amp; PROCEED TO CHECKOUT ➔</span>
+                    </button>
                   </div>
                 </div>
+              )}
+
+              {bookingStep === 'dining' && selectedFare && selectedPassengers && (
+                <PantryMenu
+                  onConfirmSelections={() => {
+                    setBookingStep('checkout');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  onSkipDining={() => {
+                    clearCart();
+                    clearLastOrder();
+                    setBookingStep('checkout');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  onBackToPrompt={() => {
+                    setBookingStep('dining-prompt');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                />
+              )}
+
+              {bookingStep === 'checkout' && selectedFare && selectedPassengers && (
+                <TicketSummary
+                  fare={selectedFare.fare}
+                  route={selectedFare.route}
+                  passengers={selectedPassengers}
+                  unitPrice={selectedFare.fare.price}
+                  cardholderName={user.name}
+                  railcardLabel={
+                    user.railcard.discountPercent > 0
+                      ? `${user.railcard.type} · ${user.railcard.discountPercent}% off`
+                      : undefined
+                  }
+                  isSubmitting={isSubmitting}
+                  bookingError={bookingError}
+                  onConfirmAndPay={handleAuthorizePayment}
+                  onBackToDining={() => {
+                    setBookingStep('dining');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  onBackToSeats={() => {
+                    setBookingStep('seats');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  onNewBooking={handleResetToMatrix}
+                />
               )}
 
               {bookingStep === 'confirmation' && selectedFare && booking && (
@@ -422,12 +537,10 @@ function RailReservationApp({ user }: { user: User }) {
                   unitPrice={booking.booking.unitPrice}
                   pnr={booking.pnr}
                   message={booking.message}
-                  onNewBooking={() => {
-                    setBookingStep('matrix');
-                    setBooking(null);
-                    setSelectedPassengers(null);
-                    setBookingError(null);
-                  }}
+                  initialCateringOrders={booking.booking.cateringOrders}
+                  foodTotal={booking.booking.foodTotal}
+                  totalFare={booking.booking.totalFare}
+                  onNewBooking={handleResetToMatrix}
                 />
               )}
             </div>
@@ -436,7 +549,7 @@ function RailReservationApp({ user }: { user: User }) {
           {activeTab === 'departures' && (
             <ServiceTimetable
               railcardDiscount={user.railcard.discountPercent}
-              onSelectService={(service) => {
+              onSelectService={() => {
                 setActiveTab('planner');
                 setBookingStep('matrix');
               }}
@@ -445,7 +558,26 @@ function RailReservationApp({ user }: { user: User }) {
 
           {activeTab === 'tickets' && <TicketWallet />}
 
-          {activeTab === 'dining' && <PantryMenu />}
+          {activeTab === 'dining' && (
+            <PantryMenu
+              {...(selectedPassengers && !booking
+                ? {
+                    onConfirmSelections: () => {
+                      setActiveTab('planner');
+                      setBookingStep('checkout');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    },
+                    onSkipDining: () => {
+                      clearCart();
+                      clearLastOrder();
+                      setActiveTab('planner');
+                      setBookingStep('checkout');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    },
+                  }
+                : {})}
+            />
+          )}
 
           {activeTab === 'status' && (
             <div className="space-y-6">
@@ -507,7 +639,6 @@ function RailReservationApp({ user }: { user: User }) {
           </div>
         </footer>
       </div>
-    </PantryProvider>
   );
 }
 

@@ -2,11 +2,18 @@ import { Router, Request, Response } from 'express';
 import {
   Booking,
   IBookingPassenger,
+  cateringOrdersTotal,
   hasVanished,
   toPublicBooking,
 } from '../models/Booking';
 import { requireAuth } from '../auth/session';
 import { MAX_PASSENGERS, findFare, quoteFare } from '../lib/fares';
+import {
+  MAX_MILESTONE_LENGTH,
+  PreparedOrder,
+  prepareMultiPassengerOrders,
+  withOrderIds,
+} from '../lib/catering';
 
 const router = Router();
 
@@ -163,22 +170,103 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     const unitPrice = quote.price;
     const totalPrice = Number((unitPrice * passengers.length).toFixed(2));
 
-    const booking = await Booking.create({
-      userId: req.user!._id,
-      pnr: await generateUniquePnr(),
-      origin: body.origin,
-      originCode: body.originCode,
-      destination: body.destination,
-      destinationCode: body.destinationCode,
-      date: body.date,
-      time: body.time,
-      fareType: quote.type,
-      fareName: quote.name,
-      unitPrice,
-      price: totalPrice,
-      passengers,
-      status: 'CONFIRMED',
-    });
+    let preparedCatering: PreparedOrder[] = [];
+    if (body.catering !== undefined && body.catering !== null) {
+      if (typeof body.catering !== 'object' || Array.isArray(body.catering)) {
+        res.status(400).json({
+          success: false,
+          message: 'catering must be an object with deliveryMilestone and passengerOrders.',
+        });
+        return;
+      }
+
+      const rawCatering = body.catering as Record<string, unknown>;
+      if (rawCatering.passengerOrders !== undefined && !Array.isArray(rawCatering.passengerOrders)) {
+        res.status(400).json({
+          success: false,
+          message: 'catering.passengerOrders must be an array.',
+        });
+        return;
+      }
+
+      const rawOrders = (rawCatering.passengerOrders as unknown[] | undefined) ?? [];
+      if (rawOrders.length > 0) {
+        const deliveryMilestone = String(rawCatering.deliveryMilestone ?? '').trim();
+        if (!deliveryMilestone || deliveryMilestone.length > MAX_MILESTONE_LENGTH) {
+          res.status(400).json({
+            success: false,
+            message: `Choose a delivery milestone of up to ${MAX_MILESTONE_LENGTH} characters.`,
+          });
+          return;
+        }
+
+        const prepared = prepareMultiPassengerOrders(
+          {
+            fareType: quote.type,
+            fareName: quote.name,
+            originCode: String(body.originCode),
+            passengers,
+          },
+          rawOrders,
+          deliveryMilestone
+        );
+
+        if (typeof prepared === 'string') {
+          res.status(400).json({ success: false, message: prepared });
+          return;
+        }
+
+        preparedCatering = prepared;
+      }
+    }
+
+    const foodTotal = cateringOrdersTotal(preparedCatering);
+    const totalFare = Number((totalPrice + foodTotal).toFixed(2));
+
+    let pnr = await generateUniquePnr();
+    let booking = null;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const cateringOrders =
+        preparedCatering.length > 0
+          ? withOrderIds(preparedCatering, String(body.originCode), attempt)
+          : [];
+
+      try {
+        booking = await Booking.create({
+          userId: req.user!._id,
+          pnr,
+          origin: body.origin,
+          originCode: body.originCode,
+          destination: body.destination,
+          destinationCode: body.destinationCode,
+          date: body.date,
+          time: body.time,
+          fareType: quote.type,
+          fareName: quote.name,
+          unitPrice,
+          price: totalPrice,
+          foodTotal,
+          totalFare,
+          passengers,
+          cateringOrders,
+          status: 'CONFIRMED',
+        });
+        break;
+      } catch (err) {
+        const mongoErr = err as { code?: number; keyPattern?: Record<string, unknown> };
+        if (mongoErr.code === 11000 && attempt < 2) {
+          if (mongoErr.keyPattern?.pnr) pnr = await generateUniquePnr();
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    if (!booking) {
+      res.status(500).json({ success: false, message: 'Could not create the booking.' });
+      return;
+    }
 
     res.status(201).json({
       success: true,

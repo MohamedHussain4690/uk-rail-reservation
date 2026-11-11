@@ -54,6 +54,10 @@ export interface BookingRequest {
   time: string;
   fareType: string;
   passengers: BookingPassenger[];
+  catering?: {
+    deliveryMilestone: string;
+    passengerOrders: PassengerCateringOrderRequest[];
+  };
 }
 
 export interface Booking {
@@ -69,8 +73,12 @@ export interface Booking {
   fareName: string;
   /** Price for one passenger, after the railcard concession. */
   unitPrice: number;
-  /** Total charged for the party. */
+  /** Rail fare total charged for the party. */
   price: number;
+  /** At-seat catering spend across embedded orders (0 if skipped). */
+  foodTotal: number;
+  /** Unified settlement total (price + foodTotal). */
+  totalFare: number;
   passengerCount: number;
   passengers: BookingPassenger[];
   /** At-seat catering orders attached to this reservation, oldest first. */
