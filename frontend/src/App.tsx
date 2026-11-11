@@ -240,7 +240,7 @@ function RailReservationShell({
   return (
       <div className="min-h-screen bg-[#F8F9FA] text-[#0B192C] flex flex-col font-sans transition-colors duration-200 print-sheet">
         {/* Live Status Ticker */}
-        <div className="bg-[#0B192C] text-white px-4 py-2.5 text-xs font-mono tracking-wider flex items-center justify-between border-b border-white/10 overflow-hidden no-print">
+        <div className="bg-[#0B192C] text-white px-4 py-2.5 text-xs font-mono tracking-wider flex items-center justify-between border-b border-white/10 overflow-hidden no-print print:hidden">
           <div className="flex items-center space-x-3 whitespace-nowrap overflow-hidden">
             <div className="flex items-center space-x-2 shrink-0">
               <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping inline-block"></span>
@@ -261,7 +261,7 @@ function RailReservationShell({
         </div>
 
         {/* Main Navigation Header */}
-        <header className="bg-white border-b border-[#0B192C]/12 sticky top-0 z-30 transition-colors no-print">
+        <header className="bg-white border-b border-[#0B192C]/12 sticky top-0 z-30 transition-colors no-print print:hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2.5">
@@ -536,6 +536,7 @@ function RailReservationShell({
                   passengers={booking.booking.passengers}
                   unitPrice={booking.booking.unitPrice}
                   pnr={booking.pnr}
+                  createdAt={booking.booking.createdAt}
                   message={booking.message}
                   initialCateringOrders={booking.booking.cateringOrders}
                   foodTotal={booking.booking.foodTotal}
@@ -626,7 +627,7 @@ function RailReservationShell({
         </main>
 
         {/* Footer */}
-        <footer className="bg-white border-t border-[#0B192C]/12 mt-auto transition-colors text-gray-600 no-print">
+        <footer className="bg-white border-t border-[#0B192C]/12 mt-auto transition-colors text-gray-600 no-print print:hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-mono">
             <div>
               <span className="font-bold text-[#0B192C]">UK TRANS-NATIONAL TRANSIT AUTHORITY</span> • National Rail Enquiries System

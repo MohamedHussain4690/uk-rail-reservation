@@ -17,7 +17,7 @@
    onto a second one. */
 @page {
   size: A4 portrait;
-  margin: 10mm;
+  margin: 8mm 8mm 8mm 8mm; /* Tight transit margins to fit 1 page */
 }
 
 @media print {
@@ -47,8 +47,11 @@
     background: #ffffff !important;
   }
 
-  /* A ticket split across two sides is useless at a barrier gate. */
-  .print-ticket {
+  /* A ticket, barrier pass, or dining voucher section must never split across pages. */
+  .print-ticket,
+  .print-barrier-pass,
+  .print-dining-vouchers,
+  .print-voucher-card {
     break-inside: avoid;
     page-break-inside: avoid;
   }
