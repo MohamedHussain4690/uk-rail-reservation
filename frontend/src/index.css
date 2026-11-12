@@ -15,20 +15,20 @@
    nothing else on it: the app chrome steps aside and the ticket is released
    from the shell's width constraints so it fills the page without reflowing
    onto a second one. */
-@page {
-  size: A4 portrait;
-  margin: 8mm 8mm 8mm 8mm; /* Tight transit margins to fit 1 page */
-}
-
 @media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
   html,
   body {
     background: #ffffff !important;
     color: #0b192c !important;
     /* Without this, Chrome and Safari drop the background colours and the
        ticket prints as a blank grey slip instead of the amber rail stock. */
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   /* Application chrome and in-page controls — never part of the ticket. */

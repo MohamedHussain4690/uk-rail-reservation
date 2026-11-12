@@ -440,161 +440,198 @@ export function TicketSummary({
   );
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto print-sheet print:space-y-0 text-[#0B192C]">
-      <div className="bg-white border border-[#0B192C]/12 p-4 sm:p-8 space-y-6 shadow-sm print-ticket print:p-0 print:border-0 print:shadow-none print:space-y-2">
-        {/* Centered Print Header Block (National Rail A4 Document Credential) */}
-        <header className="hidden print:flex flex-col w-full text-center items-center justify-center border-b border-railNavy/15 pb-2 mb-3">
-          <div className="w-full text-center flex items-center justify-center font-sans font-semibold tracking-wider text-xs md:text-sm text-railNavy uppercase">
-            National Rail Enquiries &amp; Booking | UK Trans-National Transit
+    <div className="space-y-6 max-w-3xl mx-auto print-sheet print:max-w-none print:w-full print:space-y-0 text-[#0B192C]">
+      <div className="bg-white border border-[#0B192C]/12 p-4 sm:p-8 space-y-6 shadow-sm print-ticket print:p-0 print:border-0 print:shadow-none print:space-y-0 print:grid print:grid-cols-12 print:gap-3 print:items-stretch">
+        {/* Centered Print Header Block (National Rail A4 Landscape Document Credential) */}
+        <header className="hidden print:flex flex-col w-full text-center items-center justify-center border-b border-railNavy/15 pb-1.5 print:col-span-12">
+          <div className="w-full text-center flex items-center justify-center font-sans font-bold tracking-wider text-xs text-railNavy uppercase">
+            NATIONAL RAIL ENQUIRIES &amp; BOOKING | UK TRANS-NATIONAL TRANSIT
           </div>
-          <div className="mt-0.5 font-mono text-[10px] text-zinc-500 uppercase tracking-widest">
-            Issued {issuedTimestamp} • PNR {pnr} • Official E-Ticket Credential
+          <div className="mt-0.5 font-mono text-[10px] text-zinc-500 uppercase tracking-widest text-center">
+            ISSUED {issuedTimestamp} • PNR {pnr} • OFFICIAL E-TICKET &amp; CATERING CREDENTIAL
           </div>
         </header>
 
-        <div className="flex items-center justify-between pb-4 border-b border-[#0B192C]/12 print:pb-1.5">
-          <div className="flex items-center space-x-3 print:space-x-2">
-            <div className="w-10 h-10 print:w-7 print:h-7 bg-[#0B192C] text-white flex items-center justify-center font-bold text-lg border border-[#0B192C]">
-              <Train className="w-5 h-5 print:w-3.5 print:h-3.5 text-railAmber" />
-            </div>
-            <div>
-              <h2 className="font-bold text-base print:text-xs leading-tight uppercase">National Rail E-Ticket & Pass</h2>
-              <p className="text-xs print:text-[9px] text-gray-500 font-mono">AUTHORISED PASSENGER TRANSPORT AUTHORITY • PNR: {pnr}</p>
-            </div>
-          </div>
-          <span className="text-xs print:text-[9px] font-mono bg-emerald-100 text-emerald-800 px-3 py-1 print:px-2 print:py-0.5 font-bold uppercase border border-emerald-300">
-            VALIDATED & PAID
-          </span>
-        </div>
-
-        {message && (
-          <div className="bg-emerald-50 border border-emerald-300 p-3 text-xs font-mono text-emerald-900 flex items-start space-x-2 no-print print:hidden">
-            <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-            <span>{message}</span>
-          </div>
-        )}
-
-        {/* Authentic UK Orange/White Magnetic Stripe Ticket Simulation */}
-        <div className="bg-amber-500 text-slate-950 border-2 border-[#0B192C] p-6 print:p-2.5 shadow-md print:shadow-none relative overflow-hidden font-mono print-barrier-pass">
-          <div className="absolute top-0 right-0 w-32 h-full bg-white/20 skew-x-12 pointer-events-none"></div>
-
-          <div className="flex justify-between items-start border-b border-slate-900/30 pb-4 mb-4 print:pb-1.5 print:mb-1.5">
-            <div>
-              <span className="text-[10px] print:text-[8px] bg-slate-950 text-white px-2 py-0.5 font-bold uppercase">NATIONAL RAIL SINGLE</span>
-              <div className="text-xl print:text-sm font-bold tracking-tight mt-1 print:mt-0.5">{fare.name}</div>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl print:text-base font-bold">£{total.toFixed(2)}</div>
-              <div className="text-[10px] print:text-[9px] text-slate-900/80 print:text-slate-950">
-                {resolvedFoodTotal > 0
-                  ? `RAIL £${railNetTotal.toFixed(2)} + DINING £${resolvedFoodTotal.toFixed(2)}`
-                  : passengers.length === 1
-                  ? 'STANDARD CLASS'
-                  : `${passengers.length} × £${unitPrice.toFixed(2)} · STANDARD CLASS`}
+        {/* Left Column (7/12 in Print): Primary Travel Pass & Barrier Barcode */}
+        <div className="space-y-6 print:col-span-7 print:space-y-2 print:flex print:flex-col print:justify-between print-barrier-pass">
+          <div className="flex items-center justify-between pb-4 border-b border-[#0B192C]/12 print:pb-1.5">
+            <div className="flex items-center space-x-3 print:space-x-2">
+              <div className="w-10 h-10 print:w-7 print:h-7 bg-[#0B192C] text-white flex items-center justify-center font-bold text-lg border border-[#0B192C]">
+                <Train className="w-5 h-5 print:w-3.5 print:h-3.5 text-railAmber" />
+              </div>
+              <div>
+                <h2 className="font-bold text-base print:text-xs leading-tight uppercase">National Rail E-Ticket &amp; Pass</h2>
+                <p className="text-xs print:text-[9px] text-gray-500 font-mono">AUTHORISED PASSENGER TRANSPORT AUTHORITY • PNR: {pnr}</p>
               </div>
             </div>
+            <span className="text-xs print:text-[9px] font-mono bg-emerald-100 text-emerald-800 px-3 py-1 print:px-2 print:py-0.5 font-bold uppercase border border-emerald-300">
+              VALIDATED &amp; PAID
+            </span>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 print:grid-cols-4 gap-4 py-2 border-b border-slate-900/30 pb-4 mb-4 text-xs print:gap-2 print:py-1 print:pb-1.5 print:mb-1.5">
-            <div>
-              <span className="text-[10px] print:text-[8px] uppercase opacity-75 block">ORIGIN CRS</span>
-              <span className="text-base print:text-xs font-bold leading-tight">{route.origin.name}</span>
-              <span className="text-[10px] print:text-[9px] block font-mono">[{route.origin.code}]</span>
+          {message && (
+            <div className="bg-emerald-50 border border-emerald-300 p-3 text-xs font-mono text-emerald-900 flex items-start space-x-2 no-print print:hidden">
+              <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>{message}</span>
             </div>
-            <div>
-              <span className="text-[10px] print:text-[8px] uppercase opacity-75 block">DESTINATION CRS</span>
-              <span className="text-base print:text-xs font-bold leading-tight">{route.destination.name}</span>
-              <span className="text-[10px] print:text-[9px] block font-mono">[{route.destination.code}]</span>
-            </div>
-            <div>
-              <span className="text-[10px] print:text-[8px] uppercase opacity-75 block">DATE & TIME</span>
-              <span className="text-base print:text-xs font-bold leading-tight">{route.date}</span>
-              <span className="text-[10px] print:text-[9px] block font-mono">{route.time} DEPARTURE</span>
-            </div>
-            <div>
-              <span className="text-[10px] print:text-[8px] uppercase opacity-75 block">RESERVATION</span>
-              <span className="text-base print:text-xs font-bold text-slate-950 leading-tight">
-                {passengers.length === 1 ? coachLabel(passengers[0].coach) : `${passengers.length} SEATS`}
-              </span>
-              <span className="text-[10px] print:text-[9px] block font-mono">
-                Seat {passengers.map((passenger) => passenger.seat).join(', ')}
-              </span>
-            </div>
-          </div>
+          )}
 
-          <div className="border-b border-slate-900/30 pb-3 mb-3 print:pb-1 print:mb-1">
-            <div className="flex items-center justify-between text-[10px] print:text-[8px] uppercase opacity-75 mb-1.5 print:mb-0.5">
-              <span>Passenger Manifest</span>
-              <span>
-                {passengers.length} {passengers.length === 1 ? 'Traveller' : 'Travellers'} · Total £{total.toFixed(2)}
-                {resolvedFoodTotal > 0 ? ` (incl. £${resolvedFoodTotal.toFixed(2)} catering)` : ''}
-              </span>
-            </div>
-            <div className="divide-y divide-slate-900/15">
-              {passengers.map((passenger, index) => (
-                <div key={index} className="flex items-center justify-between gap-3 py-1.5 print:py-0 text-xs print:text-[10px] print:leading-snug">
-                  <span className="truncate">
-                    <strong className="mr-1.5">{String(index + 1).padStart(2, '0')}</strong>
-                    {passenger.name}
-                  </span>
-                  <span className="whitespace-nowrap">
-                    {coachLabel(passenger.coach)} · Seat <strong>{passenger.seat}</strong>
-                  </span>
+          {/* Authentic UK Orange/White Magnetic Stripe Ticket Simulation */}
+          <div className="bg-amber-500 text-slate-950 border-2 border-[#0B192C] p-6 print:p-3 print:flex-1 print:flex print:flex-col print:justify-between shadow-md print:shadow-none relative overflow-hidden font-mono print-barrier-pass">
+            <div className="absolute top-0 right-0 w-32 h-full bg-white/20 skew-x-12 pointer-events-none"></div>
+
+            <div className="flex justify-between items-start border-b border-slate-900/30 pb-4 mb-4 print:pb-1.5 print:mb-1.5">
+              <div>
+                <span className="text-[10px] print:text-[8px] bg-slate-950 text-white px-2 py-0.5 font-bold uppercase">NATIONAL RAIL SINGLE</span>
+                <div className="text-xl print:text-sm font-bold tracking-tight mt-1 print:mt-0.5">{fare.name}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl print:text-base font-bold">£{total.toFixed(2)}</div>
+                <div className="text-[10px] print:text-[9px] text-slate-900/80 print:text-slate-950">
+                  {resolvedFoodTotal > 0
+                    ? `RAIL £${railNetTotal.toFixed(2)} + DINING £${resolvedFoodTotal.toFixed(2)}`
+                    : passengers.length === 1
+                    ? 'STANDARD CLASS'
+                    : `${passengers.length} × £${unitPrice.toFixed(2)} · STANDARD CLASS`}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row print:flex-row items-center justify-between gap-4 pt-2 print:gap-2 print:pt-1">
-            <div className="text-[11px] print:text-[9px] leading-tight space-y-0.5 opacity-90 text-slate-950">
-              <div>Valid only on booked service. Subject to National Rail Conditions of Travel.</div>
-              <div>BARRIER PASS CODE: 9942-8810-UKR-PASS</div>
-            </div>
-            <div className="bg-slate-950 text-white px-4 py-2 print:px-2.5 print:py-0.5 font-mono text-xs print:text-[9px] font-bold tracking-widest text-center">
-              ||| ||||| || ||| | |||||
-            </div>
-          </div>
-        </div>
-
-        {/* QR Code / Aztec Pass Card */}
-        <div className="border border-[#0B192C]/12 bg-gray-50 print:bg-white">
-          <div className="grid grid-cols-1 md:grid-cols-3 print:grid-cols-3 gap-6 p-5 print:gap-3 print:p-2 items-center print-barrier-pass">
-            <div className="bg-white border border-[#0B192C]/12 p-4 print:p-1.5 flex flex-col items-center justify-center space-y-2 print:space-y-0.5 text-center">
-              <div className="w-24 h-24 print:w-16 print:h-16 bg-[#0B192C] text-white flex items-center justify-center font-mono font-bold text-xs">
-                <QrCode className="w-16 h-16 print:w-12 print:h-12 text-railAmber" />
               </div>
-              <span className="text-[10px] print:text-[8px] font-mono text-gray-500">Scan at Barrier Gate</span>
             </div>
 
-            <div className="md:col-span-2 print:col-span-2 divide-y divide-[#0B192C]/12 text-xs print:text-[10px] font-mono text-gray-700">
-              <div className="flex justify-between py-1.5 print:py-0.5">
-                <span className="text-gray-500">LEAD PASSENGER:</span>
-                <span className="font-bold text-[#0B192C]">{passengers[0]?.name}</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 print:grid-cols-4 gap-4 py-2 border-b border-slate-900/30 pb-4 mb-4 text-xs print:gap-2 print:py-1 print:pb-1.5 print:mb-1.5">
+              <div>
+                <span className="text-[10px] print:text-[8px] uppercase opacity-75 block">ORIGIN CRS</span>
+                <span className="text-base print:text-xs font-bold leading-tight">{route.origin.name}</span>
+                <span className="text-[10px] print:text-[9px] block font-mono">[{route.origin.code}]</span>
               </div>
-              <div className="flex justify-between py-1.5 print:py-0.5">
-                <span className="text-gray-500">PARTY SIZE:</span>
-                <span className="font-bold text-[#0B192C]">
-                  {passengers.length} {passengers.length === 1 ? 'ADULT' : 'ADULTS'}
+              <div>
+                <span className="text-[10px] print:text-[8px] uppercase opacity-75 block">DESTINATION CRS</span>
+                <span className="text-base print:text-xs font-bold leading-tight">{route.destination.name}</span>
+                <span className="text-[10px] print:text-[9px] block font-mono">[{route.destination.code}]</span>
+              </div>
+              <div>
+                <span className="text-[10px] print:text-[8px] uppercase opacity-75 block">DATE &amp; TIME</span>
+                <span className="text-base print:text-xs font-bold leading-tight">{route.date}</span>
+                <span className="text-[10px] print:text-[9px] block font-mono">{route.time} DEPARTURE</span>
+              </div>
+              <div>
+                <span className="text-[10px] print:text-[8px] uppercase opacity-75 block">RESERVATION</span>
+                <span className="text-base print:text-xs font-bold text-slate-950 leading-tight">
+                  {passengers.length === 1 ? coachLabel(passengers[0].coach) : `${passengers.length} SEATS`}
+                </span>
+                <span className="text-[10px] print:text-[9px] block font-mono">
+                  Seat {passengers.map((passenger) => passenger.seat).join(', ')}
                 </span>
               </div>
-              <div className="flex justify-between py-1.5 print:py-0.5">
-                <span className="text-gray-500">TICKET REFERENCE:</span>
-                <span className="font-bold text-[#0B192C]">{pnr}</span>
+            </div>
+
+            <div className="border-b border-slate-900/30 pb-3 mb-3 print:pb-1.5 print:mb-1.5">
+              <div className="flex items-center justify-between text-[10px] print:text-[8px] uppercase opacity-75 mb-1.5 print:mb-0.5">
+                <span>Passenger Manifest</span>
+                <span>
+                  {passengers.length} {passengers.length === 1 ? 'Traveller' : 'Travellers'} · Total £{total.toFixed(2)}
+                  {resolvedFoodTotal > 0 ? ` (incl. £${resolvedFoodTotal.toFixed(2)} catering)` : ''}
+                </span>
               </div>
-              <div className="flex justify-between py-1.5 print:py-0.5">
-                <span className="text-gray-500">OPERATOR:</span>
-                <span className="font-bold text-[#0B192C]">Avanti West Coast / National Rail</span>
+              <div className="divide-y divide-slate-900/15">
+                {passengers.map((passenger, index) => (
+                  <div key={index} className="flex items-center justify-between gap-3 py-1.5 print:py-0.5 text-xs print:text-[10px] print:leading-snug">
+                    <span className="truncate">
+                      <strong className="mr-1.5">{String(index + 1).padStart(2, '0')}</strong>
+                      {passenger.name}
+                    </span>
+                    <span className="whitespace-nowrap">
+                      {coachLabel(passenger.coach)} · Seat <strong>{passenger.seat}</strong>
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between pt-1.5 print:pt-0.5">
-                <span className="text-gray-500">STATUS:</span>
-                <span className="font-bold text-emerald-600">READY FOR TRAVEL</span>
+            </div>
+
+            <div className="flex flex-col md:flex-row print:flex-row items-center justify-between gap-4 pt-2 print:gap-2 print:pt-1">
+              <div className="text-[11px] print:text-[9px] leading-tight space-y-0.5 opacity-90 text-slate-950">
+                <div>Valid only on booked service. Subject to National Rail Conditions of Travel.</div>
+                <div>BARRIER PASS CODE: 9942-8810-UKR-PASS</div>
               </div>
+              <div className="bg-slate-950 text-white px-4 py-2 print:px-2.5 print:py-1 font-mono text-xs print:text-[9px] font-bold tracking-widest text-center shrink-0">
+                ||| ||||| || ||| | |||||
+              </div>
+            </div>
+          </div>
+
+          {/* QR Code / Aztec Pass Card */}
+          <div className="border border-[#0B192C]/12 bg-gray-50 print:bg-white">
+            <div className="grid grid-cols-1 md:grid-cols-3 print:grid-cols-3 gap-6 p-5 print:gap-3 print:p-2.5 items-center print-barrier-pass">
+              <div className="bg-white border border-[#0B192C]/12 p-4 print:p-2 flex flex-col items-center justify-center space-y-2 print:space-y-1 text-center">
+                <div className="w-24 h-24 print:w-16 print:h-16 bg-[#0B192C] text-white flex items-center justify-center font-mono font-bold text-xs">
+                  <QrCode className="w-16 h-16 print:w-12 print:h-12 text-railAmber" />
+                </div>
+                <span className="text-[10px] print:text-[8px] font-mono text-gray-500">Scan at Barrier Gate</span>
+              </div>
+
+              <div className="md:col-span-2 print:col-span-2 divide-y divide-[#0B192C]/12 text-xs print:text-[10px] font-mono text-gray-700">
+                <div className="flex justify-between py-1.5 print:py-0.5">
+                  <span className="text-gray-500">LEAD PASSENGER:</span>
+                  <span className="font-bold text-[#0B192C]">{passengers[0]?.name}</span>
+                </div>
+                <div className="flex justify-between py-1.5 print:py-0.5">
+                  <span className="text-gray-500">PARTY SIZE:</span>
+                  <span className="font-bold text-[#0B192C]">
+                    {passengers.length} {passengers.length === 1 ? 'ADULT' : 'ADULTS'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1.5 print:py-0.5">
+                  <span className="text-gray-500">TICKET REFERENCE:</span>
+                  <span className="font-bold text-[#0B192C]">{pnr}</span>
+                </div>
+                <div className="flex justify-between py-1.5 print:py-0.5">
+                  <span className="text-gray-500">OPERATOR:</span>
+                  <span className="font-bold text-[#0B192C]">Avanti West Coast / National Rail</span>
+                </div>
+                <div className="flex justify-between pt-1.5 print:pt-0.5">
+                  <span className="text-gray-500">STATUS:</span>
+                  <span className="font-bold text-emerald-600">READY FOR TRAVEL</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column (5/12 in Print): Fare Breakdown & At-Seat Dining Vouchers */}
+        <div className="space-y-6 print:col-span-5 print:space-y-2 print:flex print:flex-col print:justify-between print-dining-vouchers">
+          {/* Print-only Itemized Fare Breakdown */}
+          <div className="hidden print:block border border-[#0B192C]/15 bg-[#F8F9FA] p-2.5 font-mono">
+            <div className="flex items-center justify-between border-b border-[#0B192C]/15 pb-1 mb-1.5">
+              <span className="font-sans text-[9px] font-bold uppercase tracking-[0.14em] text-railNavy">
+                Journey Settlement Summary
+              </span>
+              <span className="text-[8px] uppercase text-zinc-500">PNR {pnr}</span>
+            </div>
+            <div className="space-y-0.5 text-[9.5px] text-gray-700">
+              <div className="flex justify-between">
+                <span>
+                  Rail Fare ({passengers.length} × £{unitPrice.toFixed(2)})
+                </span>
+                <span className="font-bold text-[#0B192C] tabular-nums">£{railNetTotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>
+                  At-Seat Galley Catering ({cateringOrders.length}{' '}
+                  {cateringOrders.length === 1 ? 'voucher' : 'vouchers'})
+                </span>
+                <span className="font-bold text-[#0B192C] tabular-nums">
+                  {resolvedFoodTotal > 0 ? `£${resolvedFoodTotal.toFixed(2)}` : '£0.00 (None)'}
+                </span>
+              </div>
+            </div>
+            <div className="flex justify-between items-baseline border-t border-[#0B192C]/20 mt-1.5 pt-1 text-[11px] font-bold text-[#0B192C]">
+              <span>TOTAL PAID</span>
+              <span className="tabular-nums">£{total.toFixed(2)}</span>
             </div>
           </div>
 
           {cateringOrders.length > 0 && (
             <section
-              className="border-t-2 border-dashed border-[#0B192C]/30 px-3 py-4 sm:px-5 print:px-2.5 print:py-1.5 print-dining-vouchers"
+              className="border border-[#0B192C]/12 bg-gray-50 print:bg-white px-3 py-4 sm:px-5 print:px-2.5 print:py-2 print:flex-1 print-dining-vouchers"
               aria-labelledby="dining-vouchers-title"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -614,8 +651,12 @@ export function TicketSummary({
               </div>
 
               <div
-                className={`mt-3 gap-3 print:mt-1 print:gap-1.5 grid ${
-                  cateringOrders.length > 1 ? 'md:grid-cols-2 print:grid-cols-2' : ''
+                className={`mt-3 gap-3 print:mt-1.5 print:gap-1.5 grid ${
+                  cateringOrders.length > 2
+                    ? 'md:grid-cols-2 print:grid-cols-2'
+                    : cateringOrders.length > 1
+                      ? 'md:grid-cols-2 print:grid-cols-1'
+                      : ''
                 }`}
               >
                 {cateringOrders.map((order, index) => {
@@ -633,7 +674,7 @@ export function TicketSummary({
                           <div className="font-mono text-[8px] print:text-[7px] uppercase tracking-[0.18em] text-gray-500">
                             On-board dining voucher
                           </div>
-                          <h4 className="mt-0.5 print:mt-0 text-[11px] print:text-[10px] font-bold leading-snug text-[#0B192C]">
+                          <h4 className="mt-0.5 print:mt-0 text-[11px] print:text-[9.5px] font-bold leading-snug text-[#0B192C]">
                             {order.passengerName}{' '}
                             <span className="font-normal text-gray-400">•</span>{' '}
                             {order.assignedCoach}, Seat {order.assignedSeat}
@@ -644,12 +685,12 @@ export function TicketSummary({
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 px-3 py-2 print:gap-2 print:px-2 print:py-1 font-mono">
+                      <div className="grid grid-cols-2 gap-3 px-3 py-2 print:gap-1.5 print:px-2 print:py-1 font-mono">
                         <div className="min-w-0">
                           <div className="text-[8px] print:text-[7px] uppercase tracking-wider text-gray-500">
                             Catering reference
                           </div>
-                          <div className="mt-0.5 break-all text-[8px] print:text-[8px] font-bold leading-tight text-[#0B192C] sm:text-[9px]">
+                          <div className="mt-0.5 break-all text-[8px] print:text-[7.5px] font-bold leading-tight text-[#0B192C] sm:text-[9px]">
                             {order.orderId}
                           </div>
                         </div>
@@ -657,7 +698,7 @@ export function TicketSummary({
                           <div className="text-[8px] print:text-[7px] uppercase tracking-wider text-gray-500">
                             Scheduled window
                           </div>
-                          <div className="mt-0.5 text-[9px] print:text-[8px] font-bold leading-tight text-[#0B192C]">
+                          <div className="mt-0.5 text-[9px] print:text-[7.5px] font-bold leading-tight text-[#0B192C]">
                             {order.deliveryMilestone}
                           </div>
                         </div>
@@ -674,15 +715,15 @@ export function TicketSummary({
                           {order.items.map((item) => (
                             <li
                               key={item.itemId}
-                              className="flex items-baseline justify-between gap-3 text-xs print:text-[9.5px] leading-snug print:leading-tight text-[#0B192C]"
+                              className="flex items-baseline justify-between gap-2 text-xs print:text-[9px] leading-snug print:leading-tight text-[#0B192C]"
                             >
                               <span className="min-w-0 truncate">
                                 {item.name}{' '}
-                                <span className="font-mono text-[9px] print:text-[8.5px] font-bold">
+                                <span className="font-mono text-[9px] print:text-[8px] font-bold">
                                   ×{item.quantity}
                                 </span>
                               </span>
-                              <span className="shrink-0 font-mono text-[9px] print:text-[8.5px] tabular-nums text-gray-600">
+                              <span className="shrink-0 font-mono text-[9px] print:text-[8px] tabular-nums text-gray-600">
                                 £{(item.unitPrice * item.quantity).toFixed(2)}
                               </span>
                             </li>
@@ -700,7 +741,7 @@ export function TicketSummary({
                           aria-hidden="true"
                         />
                         <ol
-                          className="grid grid-cols-4 gap-1"
+                          className="grid grid-cols-4 gap-1 print:gap-0.5"
                           aria-label={`Dining progress for ${order.passengerName}: ${DINING_STEPS.map(
                             (entry) => entry.label
                           ).join(', ')}`}
@@ -736,7 +777,7 @@ export function TicketSummary({
                                   )}
                                 </div>
                                 <div
-                                  className={`mt-1 print:mt-0.5 pr-1 font-mono text-[8px] print:text-[7px] leading-[1.15] tracking-wide ${
+                                  className={`mt-1 print:mt-0.5 pr-0.5 font-mono text-[8px] print:text-[6.5px] leading-[1.15] tracking-wide ${
                                     done || current
                                       ? 'font-bold text-[#0B192C]'
                                       : 'text-gray-500'
@@ -767,6 +808,37 @@ export function TicketSummary({
                 })}
               </div>
             </section>
+          )}
+
+          {cateringOrders.length === 0 && (
+            <div className="hidden print:flex print:flex-1 flex-col justify-between border border-dashed border-[#0B192C]/25 bg-[#F8F9FA] p-3 font-mono">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 border-b border-[#0B192C]/15 pb-1.5">
+                  <UtensilsCrossed className="h-3.5 w-3.5 text-railNavy" aria-hidden="true" />
+                  <span className="font-sans text-[10px] font-bold uppercase tracking-wider text-railNavy">
+                    AT-SEAT CATERING: NONE / STANDARD CONDITIONS OF CARRIAGE
+                  </span>
+                </div>
+                <p className="text-[9px] text-gray-600 leading-relaxed">
+                  No pre-ordered galley &amp; pantry selections attached to this reservation. Complimentary at-seat
+                  trolley refreshments remain available for purchase onboard subject to route catering availability.
+                </p>
+              </div>
+              <div className="border-t border-[#0B192C]/15 pt-2 mt-2 space-y-1 text-[8.5px] text-gray-500 uppercase tracking-wider">
+                <div className="flex justify-between">
+                  <span>Validity</span>
+                  <span className="font-bold text-[#0B192C]">Booked Train Only</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Gate Inspection</span>
+                  <span className="font-bold text-[#0B192C]">Aztec Pass + Seat Manifest</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Authority</span>
+                  <span className="font-bold text-[#0B192C]">National Rail Conditions of Travel</span>
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
